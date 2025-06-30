@@ -1,0 +1,13 @@
+/* [project]/src/app/globals.css [app-client] (css) */
+@tailwind base;
+
+@tailwind components;
+
+@tailwind utilities;
+
+:root {
+  --color-accent: #f25c05;
+  --color-accent-hover: #d94e04;
+}
+
+/*# sourceMappingURL=src_app_globals_css_f9ee138c._.single.css.map*/

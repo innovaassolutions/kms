@@ -1,0 +1,28 @@
+{
+  "pages": {
+    "/kms/upload/page": [
+      "static/chunks/[root-of-the-server]__846aa9e3._.css",
+      "static/chunks/node_modules_next_92aedbb2._.js",
+      "static/chunks/node_modules_@chakra-ui_styled-system_dist_esm_a88eeca7._.js",
+      "static/chunks/node_modules_@chakra-ui_react_dist_esm_9d1dbb96._.js",
+      "static/chunks/node_modules_framer-motion_dist_es_5e916064._.js",
+      "static/chunks/node_modules_motion-dom_dist_es_0da7774d._.js",
+      "static/chunks/node_modules_react-icons_6ed981ab._.js",
+      "static/chunks/node_modules_@chakra-ui_theme_dist_esm_0729eb2f._.js",
+      "static/chunks/node_modules_8b21e028._.js",
+      "static/chunks/src_components_f5a991f1._.js",
+      "static/chunks/src_app_layout_tsx_c0237562._.js",
+      "static/chunks/node_modules_@supabase_node-fetch_browser_a7139867.js",
+      "static/chunks/node_modules_437673d1._.js",
+      "static/chunks/src_2ae4e9b9._.js",
+      "static/chunks/src_app_kms_upload_page_tsx_b0e71909._.js",
+      "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_fd44f5a4._.js",
+      "static/chunks/node_modules_next_dist_compiled_2ce9398a._.js",
+      "static/chunks/node_modules_next_dist_client_8f19e6fb._.js",
+      "static/chunks/node_modules_next_dist_2ecbf5fa._.js",
+      "static/chunks/node_modules_@swc_helpers_cjs_00636ac3._.js",
+      "static/chunks/_e69f0d32._.js",
+      "static/chunks/_93808211._.js"
+    ]
+  }
+}
