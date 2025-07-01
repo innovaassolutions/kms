@@ -30,9 +30,11 @@ const FILE_TYPES = [
   { label: "Text File", value: ".txt" },
   { label: "MP3 Audio", value: ".mp3" },
   { label: "WAV Audio", value: ".wav" },
+  { label: "M4A Audio", value: ".m4a" },
   { label: "MP4 Video", value: ".mp4" },
   { label: "MOV Video", value: ".mov" },
 ];
+
 
 const DOC_TYPES = [
   "strategy",
@@ -65,7 +67,7 @@ export default function KMSUploadPage() {
 
   // Helper to determine if file is audio or video
   const isAudioOrVideo = (fileType: string) => {
-    return [".mp3", ".wav", ".mp4", ".mov"].some((ext) => fileType.endsWith(ext));
+    return [".mp3", ".wav", ".m4a", ".mp4", ".mov"].some((ext) => fileType.endsWith(ext));
   };
 
   // Handle tag input (comma or enter to add)
@@ -99,6 +101,7 @@ export default function KMSUploadPage() {
       "text/plain": [".txt"],
       "audio/mpeg": [".mp3"],
       "audio/wav": [".wav"],
+      "audio/mp4": [".m4a"],
       "video/mp4": [".mp4"],
       "video/quicktime": [".mov"],
     },
@@ -137,7 +140,7 @@ export default function KMSUploadPage() {
           tags,
           file_path: uploadData.path,
           uploaded_by,
-          media_type: isAV ? (fileExt === "mp3" || fileExt === "wav" ? "audio" : "video") : "text",
+          media_type: isAV ? (fileExt === "mp3" || fileExt === "wav" || fileExt === "m4a" ? "audio" : "video") : "text",
           transcription_status: isAV ? "pending" : null,
           created_at: new Date().toISOString(),
         },
@@ -145,6 +148,29 @@ export default function KMSUploadPage() {
       if (insertError) throw insertError;
 
       toast({ title: "File uploaded successfully!", status: "success" });
+      
+      // Trigger document processing
+      try {
+        const response = await fetch('/api/process-documents', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            documentId: uploadData.path.split('/').pop()?.split('_').slice(1).join('_'), // Extract document ID
+            action: 'process_all'
+          }),
+        });
+
+        if (response.ok) {
+          toast({ title: "Document processing started!", status: "success" });
+        } else {
+          console.warn('Document processing failed, but upload succeeded');
+        }
+      } catch (error) {
+        console.warn('Failed to trigger document processing:', error);
+      }
+
       setFile(null);
       setTitle("");
       setType("");

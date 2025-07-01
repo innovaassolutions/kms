@@ -1,5 +1,5 @@
 {
-  "name": "innovaas-kms",
+  "name": "kms",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -15,7 +15,10 @@
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@supabase/supabase-js": "^2.50.0",
+    "docx": "^9.5.1",
     "next": "^15.3.3",
+    "openai": "^5.8.2",
+    "pdf-parse": "^1.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.3.8",

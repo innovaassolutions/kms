@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Heading, Text, Button, Flex } from "@chakra-ui/react";
+import { Box, Heading, Text, Button, Flex, HStack } from "@chakra-ui/react";
 import Link from "next/link";
 
 export default function KMSHomePage() {
@@ -11,11 +11,18 @@ export default function KMSHomePage() {
         <Text mb={8}>
           Upload, manage, and access your documents and media files securely.
         </Text>
-        <Link href="/kms/upload">
-          <Button colorScheme="orange" size="lg">
-            Go to Upload Page
-          </Button>
-        </Link>
+        <HStack spacing={4}>
+          <Link href="/kms/upload">
+            <Button colorScheme="orange" size="lg">
+              Upload Documents
+            </Button>
+          </Link>
+          <Link href="/kms/status">
+            <Button colorScheme="blue" size="lg" variant="outline">
+              View Status
+            </Button>
+          </Link>
+        </HStack>
       </Box>
     </Flex>
   );
