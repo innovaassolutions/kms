@@ -19,6 +19,7 @@ import {
   VStack,
   HStack,
   Icon,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import { FiRefreshCw, FiFile, FiMusic, FiVideo, FiCheck, FiX, FiClock } from "react-icons/fi";
 
@@ -38,6 +39,13 @@ export default function DocumentStatusPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const toast = useToast();
+
+  // Theme-aware color values
+  const headingColor = useColorModeValue("gray.800", "white");
+  const textColor = useColorModeValue("gray.600", "gray.300");
+  const mutedTextColor = useColorModeValue("gray.500", "gray.400");
+  const legendBgColor = useColorModeValue("gray.50", "gray.700");
+  const spinnerColor = useColorModeValue("orange.500", "orange.300");
 
   const fetchDocuments = async () => {
     try {
@@ -117,8 +125,8 @@ export default function DocumentStatusPage() {
     return (
       <Flex minH="100vh" align="center" justify="center">
         <VStack spacing={4}>
-          <Spinner size="xl" color="#F25C05" />
-          <Text>Loading document status...</Text>
+          <Spinner size="xl" color={spinnerColor} />
+          <Text color={textColor}>Loading document status...</Text>
         </VStack>
       </Flex>
     );
@@ -127,12 +135,17 @@ export default function DocumentStatusPage() {
   return (
     <Box p={8} maxW="1200px" mx="auto">
       <Flex justify="space-between" align="center" mb={8}>
-        <Heading size="lg" color="#181f2a">Document Processing Status</Heading>
+        <Heading size="lg" color={headingColor}>Document Processing Status</Heading>
         <Button
           leftIcon={<Icon as={FiRefreshCw} />}
           onClick={handleRefresh}
           isLoading={refreshing}
-          colorScheme="orange"
+          bg="#F25C05"
+          color="white"
+          fontWeight="bold"
+          borderRadius="6px"
+          _hover={{ bg: "#d94e04" }}
+          fontFamily="Montserrat, Arial, sans-serif"
         >
           Refresh
         </Button>
@@ -140,8 +153,8 @@ export default function DocumentStatusPage() {
 
       {documents.length === 0 ? (
         <Box textAlign="center" py={12}>
-          <Text fontSize="lg" color="gray.600">No documents found</Text>
-          <Text color="gray.500">Upload some documents to see their processing status</Text>
+          <Text fontSize="lg" color={textColor}>No documents found</Text>
+          <Text color={mutedTextColor}>Upload some documents to see their processing status</Text>
         </Box>
       ) : (
         <Box overflowX="auto">
@@ -159,12 +172,12 @@ export default function DocumentStatusPage() {
               {documents.map((doc) => (
                 <Tr key={doc.id}>
                   <Td>
-                    <Text fontWeight="medium">{doc.title}</Text>
+                    <Text fontWeight="medium" color={headingColor}>{doc.title}</Text>
                   </Td>
                   <Td>
                     <HStack>
                       {getMediaTypeIcon(doc.media_type)}
-                      <Text textTransform="capitalize">{doc.media_type}</Text>
+                      <Text textTransform="capitalize" color={textColor}>{doc.media_type}</Text>
                     </HStack>
                   </Td>
                   <Td>
@@ -174,7 +187,7 @@ export default function DocumentStatusPage() {
                     {getEmbeddingStatus(doc.embedding, doc.content_text, doc.transcription)}
                   </Td>
                   <Td>
-                    <Text fontSize="sm" color="gray.600">
+                    <Text fontSize="sm" color={textColor}>
                       {new Date(doc.created_at).toLocaleDateString()}
                     </Text>
                   </Td>
@@ -185,24 +198,24 @@ export default function DocumentStatusPage() {
         </Box>
       )}
 
-      <Box mt={8} p={4} bg="gray.50" borderRadius="md">
-        <Heading size="md" mb={4}>Status Legend</Heading>
+      <Box mt={8} p={4} bg={legendBgColor} borderRadius="md">
+        <Heading size="md" mb={4} color={headingColor}>Status Legend</Heading>
         <VStack align="start" spacing={2}>
           <HStack>
             <Badge colorScheme="green">Processed/Transcribed</Badge>
-            <Text fontSize="sm">Document has been successfully processed</Text>
+            <Text fontSize="sm" color={textColor}>Document has been successfully processed</Text>
           </HStack>
           <HStack>
             <Badge colorScheme="yellow">Pending</Badge>
-            <Text fontSize="sm">Document is waiting to be processed</Text>
+            <Text fontSize="sm" color={textColor}>Document is waiting to be processed</Text>
           </HStack>
           <HStack>
             <Badge colorScheme="red">Error</Badge>
-            <Text fontSize="sm">An error occurred during processing</Text>
+            <Text fontSize="sm" color={textColor}>An error occurred during processing</Text>
           </HStack>
           <HStack>
             <Badge colorScheme="green">Embedded</Badge>
-            <Text fontSize="sm">Vector embedding has been generated</Text>
+            <Text fontSize="sm" color={textColor}>Vector embedding has been generated</Text>
           </HStack>
         </VStack>
       </Box>

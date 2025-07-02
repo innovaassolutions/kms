@@ -45,43 +45,22 @@ export default function Header() {
         {/* Logo */}
         <Link href="/" style={{ display: "flex", alignItems: "center" }}>
           <Image
-            src="/innovaas_logo_orange_and_white.png"
+            src="/innovaasLogoOrange.png"
             alt="Innovaas Logo"
-            width={140}
-            height={80}
+            width={48}
+            height={48}
             style={{
               objectFit: "contain",
-              height: "80px",
-              width: "auto",
-              marginRight: "1rem"
+              height: "48px",
+              width: "48px",
+              marginRight: "0"
             }}
-            // Responsive: larger on md+
-            sizes="(max-width: 768px) 120px, 240px"
+            sizes="48px"
           />
         </Link>
 
         {/* Desktop Nav */}
-        <HStack spacing={2} display={{ base: "none", md: "flex" }}>
-          {navLinks.map(link => (
-            <Link
-              key={link.href}
-              href={link.href}
-              style={{
-                padding: "0.4rem 1rem",
-                borderRadius: "999px",
-                background: pathname === link.href ? 'var(--color-accent)' : 'transparent',
-                color: pathname === link.href ? '#fff' : navTextColor,
-                fontWeight: 700,
-                fontFamily: 'Montserrat, Arial, sans-serif',
-                fontSize: "1rem",
-                transition: "background 0.2s, color 0.2s",
-                textDecoration: "none",
-              }}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </HStack>
+        <Flex align="center"></Flex>
 
         {/* Color Mode Switcher */}
         <Flex align="center">

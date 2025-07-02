@@ -1,29 +1,28 @@
 "use client";
 
-import { Box, Heading, Text, Button, Flex, HStack } from "@chakra-ui/react";
+import { Box, Heading, Text, Button, Flex, HStack, SimpleGrid } from "@chakra-ui/react";
 import Link from "next/link";
 
 export default function KMSHomePage() {
   return (
-    <Flex minH="100vh" align="center" justify="center" bg="gray.50">
-      <Box p={8} bg="white" borderRadius="xl" boxShadow="lg" textAlign="center">
-        <Heading mb={4}>Welcome to the Knowledge Management System (KMS)</Heading>
-        <Text mb={8}>
-          Upload, manage, and access your documents and media files securely.
-        </Text>
-        <HStack spacing={4}>
-          <Link href="/kms/upload">
-            <Button colorScheme="orange" size="lg">
-              Upload Documents
-            </Button>
-          </Link>
-          <Link href="/kms/status">
-            <Button colorScheme="blue" size="lg" variant="outline">
-              View Status
-            </Button>
-          </Link>
-        </HStack>
-      </Box>
-    </Flex>
+    <Box minH="100vh" bg="gray.50" p={8}>
+      <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={6}>
+        {[...Array(12)].map((_, i) => (
+          <Box
+            key={i}
+            bg="white"
+            borderRadius="lg"
+            boxShadow="md"
+            p={8}
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            minH="120px"
+          >
+            <Text fontWeight="bold" color="gray.500">Placeholder {i + 1}</Text>
+          </Box>
+        ))}
+      </SimpleGrid>
+    </Box>
   );
 }

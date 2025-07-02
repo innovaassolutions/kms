@@ -7,6 +7,23 @@ const config: ThemeConfig = {
 
 const theme = extendTheme({
   config,
+  colors: {
+    orange: {
+      50: "#FFF7F0",
+      100: "#FFE0CC",
+      200: "#FFC299",
+      300: "#FFA366",
+      400: "#FF8533",
+      500: "#F25C05", // Main brand orange
+      600: "#D94E04",
+      700: "#B93F03",
+      800: "#993202",
+      900: "#7A2602",
+    },
+    brand: {
+      orange: "#F25C05",
+    },
+  },
   styles: {
     global: (props: StyleFunctionProps) => ({
       body: {
@@ -25,6 +42,31 @@ const theme = extendTheme({
       },
       // Add more as needed
     }),
+  },
+  components: {
+    Button: {
+      baseStyle: {
+        fontWeight: "bold",
+        borderRadius: "md",
+      },
+      variants: {
+        solid: {
+          bg: "orange.500",
+          color: "white",
+          _hover: { bg: "orange.600" },
+        },
+        outline: {
+          color: "orange.500",
+          borderColor: "orange.500",
+          _hover: { bg: "orange.50" },
+        },
+      },
+    },
+    Tag: {
+      baseStyle: {
+        borderRadius: "full",
+      },
+    },
   },
 });
 
