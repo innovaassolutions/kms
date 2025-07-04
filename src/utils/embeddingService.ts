@@ -1,4 +1,4 @@
-import { supabase } from './supabase/client';
+import { supabaseServer } from './supabase/serverClients';
 
 // Embedding service using OpenAI text-embedding-3-small
 export class EmbeddingService {
@@ -11,11 +11,27 @@ export class EmbeddingService {
     }
   }
 
+  // Truncate text to fit within token limits (approximate)
+  private truncateText(text: string, maxTokens: number = 6000): string {
+    // Rough estimate: 1 token ≈ 3 characters (conservative)
+    const maxChars = maxTokens * 3;
+    
+    if (text.length <= maxChars) {
+      return text;
+    }
+    
+    // Truncate and add indicator
+    return text.substring(0, maxChars - 50) + '\n\n[Text truncated due to length...]';
+  }
+
   // Generate embedding for text using OpenAI
   async generateEmbedding(text: string): Promise<number[]> {
     if (!this.apiKey) {
       throw new Error('OpenAI API key not configured');
     }
+
+    // Truncate text if it's too long
+    const truncatedText = this.truncateText(text);
 
     try {
       const response = await fetch('https://api.openai.com/v1/embeddings', {
@@ -25,7 +41,7 @@ export class EmbeddingService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          input: text,
+          input: truncatedText,
           model: 'text-embedding-3-small',
         }),
       });
@@ -47,7 +63,7 @@ export class EmbeddingService {
   async processDocumentForEmbedding(documentId: string): Promise<void> {
     try {
       // 1. Get document metadata
-      const { data: document, error: fetchError } = await supabase
+      const { data: document, error: fetchError } = await supabaseServer
         .from('documents')
         .select('*')
         .eq('id', documentId)
@@ -73,7 +89,7 @@ export class EmbeddingService {
       const embedding = await this.generateEmbedding(textToEmbed);
 
       // 5. Update document with embedding
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseServer
         .from('documents')
         .update({ 
           embedding: embedding
@@ -93,11 +109,10 @@ export class EmbeddingService {
 
   // Get documents that need embedding generation
   async getDocumentsForEmbedding(): Promise<any[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .from('documents')
       .select('*')
       .or('content_text.neq.,transcription.neq.')
-      .is('embedding', null)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -105,7 +120,15 @@ export class EmbeddingService {
       return [];
     }
 
-    return data || [];
+    // Filter out documents that already have valid embeddings
+    const filtered = (data || []).filter(doc => {
+      const hasValidEmbedding = doc.embedding && Array.isArray(doc.embedding) && doc.embedding.length > 0;
+      console.log(`Document ${doc.title}: hasValidEmbedding=${hasValidEmbedding}, embeddingType=${typeof doc.embedding}, embeddingLength=${doc.embedding?.length || 0}`);
+      return !hasValidEmbedding;
+    });
+
+    console.log(`Found ${filtered.length} documents needing embeddings out of ${data?.length || 0} total`);
+    return filtered;
   }
 
   // Process all documents that need embedding
@@ -130,7 +153,7 @@ export class EmbeddingService {
       const queryEmbedding = await this.generateEmbedding(query);
 
       // 2. Search for similar documents using vector similarity
-      const { data, error } = await supabase.rpc('match_documents', {
+      const { data, error } = await supabaseServer.rpc('match_documents', {
         query_embedding: queryEmbedding,
         match_threshold: 0.7,
         match_count: limit

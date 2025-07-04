@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -15,6 +15,10 @@ import {
   VStack,
   Flex,
   useColorModeValue,
+  TagLabel,
+  TagCloseButton,
+  Wrap,
+  WrapItem,
 } from "@chakra-ui/react";
 import { supabase } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
@@ -28,6 +32,7 @@ const FILE_TYPES = [
   { label: "PDF", value: ".pdf" },
   { label: "Word Document", value: ".docx" },
   { label: "Text File", value: ".txt" },
+  { label: "Markdown", value: ".md" },
   { label: "MP3 Audio", value: ".mp3" },
   { label: "WAV Audio", value: ".wav" },
   { label: "M4A Audio", value: ".m4a" },
@@ -44,6 +49,9 @@ const DOC_TYPES = [
   "idea",
   "audio",
   "video",
+  "whitepaper",
+  "project-plan",
+  "project-charter",
 ];
 
 export default function KMSUploadPage() {
@@ -52,6 +60,7 @@ export default function KMSUploadPage() {
   const [type, setType] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
   const router = useRouter();
@@ -64,6 +73,29 @@ export default function KMSUploadPage() {
   const dropzoneBorder = useColorModeValue("#CBD5E1", "#353c4a");
   const dropzoneText = useColorModeValue("gray.700", "gray.200");
   const dropzoneHelper = useColorModeValue("gray.500", "gray.400");
+
+  // Load available tags on component mount
+  useEffect(() => {
+    loadAvailableTags();
+  }, []);
+
+  const loadAvailableTags = async () => {
+    try {
+      const response = await fetch('/api/search');
+      if (response.ok) {
+        const data = await response.json();
+        const allTags = new Set<string>();
+        data.documents.forEach((doc: any) => {
+          if (doc.tags && Array.isArray(doc.tags)) {
+            doc.tags.forEach((tag: string) => allTags.add(tag));
+          }
+        });
+        setAvailableTags(Array.from(allTags).sort());
+      }
+    } catch (error) {
+      console.error('Error loading tags:', error);
+    }
+  };
 
   // Helper to determine if file is audio or video
   const isAudioOrVideo = (fileType: string) => {
@@ -78,6 +110,13 @@ export default function KMSUploadPage() {
         setTags([...tags, tagInput.trim()]);
       }
       setTagInput("");
+    }
+  };
+
+  // Add tag from dropdown
+  const addTag = (tag: string) => {
+    if (!tags.includes(tag)) {
+      setTags([...tags, tag]);
     }
   };
 
@@ -99,6 +138,7 @@ export default function KMSUploadPage() {
       "application/pdf": [".pdf"],
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
       "text/plain": [".txt"],
+      "text/markdown": [".md"],
       "audio/mpeg": [".mp3"],
       "audio/wav": [".wav"],
       "audio/mp4": [".m4a"],
@@ -133,7 +173,7 @@ export default function KMSUploadPage() {
       // For development, allow uploaded_by to be null (no auth)
 
       const isAV = isAudioOrVideo(`.${fileExt}`);
-      const { error: insertError } = await supabase.from("documents").insert([
+      const { data: insertData, error: insertError } = await supabase.from("documents").insert([
         {
           title,
           type,
@@ -144,12 +184,14 @@ export default function KMSUploadPage() {
           transcription_status: isAV ? "pending" : null,
           created_at: new Date().toISOString(),
         },
-      ]);
+      ]).select('id');
       if (insertError) throw insertError;
+      
+      const documentId = insertData?.[0]?.id;
 
       toast({ title: "File uploaded successfully!", status: "success" });
       
-      // Trigger document processing
+      // Trigger document processing using the actual document ID
       try {
         const response = await fetch('/api/process-documents', {
           method: 'POST',
@@ -157,18 +199,31 @@ export default function KMSUploadPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            documentId: uploadData.path.split('/').pop()?.split('_').slice(1).join('_'), // Extract document ID
+            documentId: documentId, // Use the actual document ID from database
             action: 'process_all'
           }),
         });
 
         if (response.ok) {
+          const result = await response.json();
           toast({ title: "Document processing started!", status: "success" });
+          console.log('Processing triggered successfully:', result);
         } else {
-          console.warn('Document processing failed, but upload succeeded');
+          const errorText = await response.text();
+          console.error('Document processing failed:', errorText);
+          toast({ 
+            title: "Processing failed to start", 
+            description: "Document uploaded but processing couldn't start automatically", 
+            status: "warning" 
+          });
         }
       } catch (error) {
-        console.warn('Failed to trigger document processing:', error);
+        console.error('Failed to trigger document processing:', error);
+        toast({ 
+          title: "Processing failed to start", 
+          description: "Document uploaded but processing couldn't start automatically", 
+          status: "warning" 
+        });
       }
 
       setFile(null);
@@ -245,27 +300,53 @@ export default function KMSUploadPage() {
               </Select>
             </FormControl>
             <FormControl>
-              <FormLabel color="gray.400" fontWeight="normal" fontSize="sm" mb={1}>Tags (comma or enter)</FormLabel>
-              <Input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder="Add a tag and press comma or enter"
-                bg={dropzoneBg}
-                color={cardText}
-                border="none"
-                borderRadius="md"
-                _placeholder={{ color: "gray.400" }}
-                p={6}
-              />
-              <HStack mt={2} spacing={2}>
-                {tags.map((tag) => (
-                  <Tag key={tag} size="md" colorScheme="orange" borderRadius="full">
-                    <Box as="span" pr={2}>{tag}</Box>
-                    <Box as="button" onClick={() => removeTag(tag)} fontWeight="bold">×</Box>
-                  </Tag>
-                ))}
-              </HStack>
+              <FormLabel color="gray.400" fontWeight="normal" fontSize="sm" mb={1}>Tags</FormLabel>
+              <VStack spacing={3} align="stretch">
+                {/* Tag selector dropdown */}
+                <Select
+                  placeholder="Select an existing tag..."
+                  value=""
+                  onChange={(e) => e.target.value && addTag(e.target.value)}
+                  bg={dropzoneBg}
+                  color={cardText}
+                  border="none"
+                  borderRadius="md"
+                  _placeholder={{ color: "gray.400" }}
+                  p={6}
+                >
+                  {availableTags.filter(tag => !tags.includes(tag)).map(tag => (
+                    <option key={tag} value={tag} style={{ background: dropzoneBg, color: cardText }}>{tag}</option>
+                  ))}
+                </Select>
+                
+                {/* Manual tag input */}
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  placeholder="...or create a new tag (comma or enter)"
+                  bg={dropzoneBg}
+                  color={cardText}
+                  border="none"
+                  borderRadius="md"
+                  _placeholder={{ color: "gray.400" }}
+                  p={6}
+                />
+                
+                {/* Selected tags display */}
+                {tags.length > 0 && (
+                  <Wrap spacing={2}>
+                    {tags.map((tag) => (
+                      <WrapItem key={tag}>
+                        <Tag size="md" colorScheme="orange" borderRadius="full">
+                          <TagLabel>{tag}</TagLabel>
+                          <TagCloseButton onClick={() => removeTag(tag)} />
+                        </Tag>
+                      </WrapItem>
+                    ))}
+                  </Wrap>
+                )}
+              </VStack>
             </FormControl>
             {/* Dropzone at the bottom */}
             <FormControl isRequired>
