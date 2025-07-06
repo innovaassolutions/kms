@@ -7,8 +7,9 @@ Welcome to the Innovaas KMS! This comprehensive system allows you to upload, pro
 ### 📁 Document Management
 - **Upload**: PDF, DOCX, TXT, MD, MP3, WAV, M4A, MP4, and MOV files
 - **Smart Tagging**: Select from existing tags or create new ones during upload
-- **Document Types**: Strategy, Meeting, Email, SOP, Idea, Audio, Video, Whitepaper, Project Plan, Project Charter
+- **Document Types**: Strategy, Meeting, Email, SOP, Idea, Audio, Video, Whitepaper, Project Plan, Project Charter, Workshop, Knowledge
 - **Edit & Delete**: Full document management with metadata editing
+- **Large File Support**: Audio/video files up to 5GB with AssemblyAI fallback
 
 ### 🔍 Advanced Search
 - **Semantic Search**: AI-powered vector similarity search using OpenAI embeddings
@@ -29,9 +30,10 @@ Welcome to the Innovaas KMS! This comprehensive system allows you to upload, pro
 
 ### 🤖 Automated Processing
 - **Text Extraction**: Automatic extraction from PDF, DOCX, TXT, and MD files
-- **Audio/Video Transcription**: OpenAI Whisper integration for media files
+- **Multi-Provider Transcription**: OpenAI Whisper (up to 25MB) with AssemblyAI fallback (up to 5GB)
 - **Vector Embeddings**: Semantic search capabilities with text-embedding-3-small
 - **Background Processing**: Automated pipeline with API endpoints and monitoring
+- **Auto-Recovery**: Continuous daemon prevents documents from getting stuck in processing
 
 ## 📋 Quick Start
 
@@ -95,10 +97,13 @@ src/
 ## 🧪 Processing Pipeline
 1. **Upload**: Files uploaded to Supabase Storage with metadata
 2. **Text Extraction**: PDF, DOCX, TXT, and MD files processed automatically
-3. **Transcription**: Audio/video files transcribed via OpenAI Whisper API
+3. **Smart Transcription**: Audio/video files processed with intelligent provider selection:
+   - Files ≤25MB: OpenAI Whisper (faster, higher quality)
+   - Files >25MB: Automatic fallback to AssemblyAI (supports up to 5GB)
 4. **Vector Embeddings**: Text converted to 1536-dimension vectors for semantic search
 5. **Quality Assurance**: Processing status tracked and errors handled gracefully
 6. **Real-time Updates**: Monitor progress via dashboard and status page
+7. **Auto-Recovery**: Background daemon ensures no documents get stuck
 
 ### Background Processing Commands
 ```bash
@@ -110,10 +115,16 @@ npx tsx scripts/process-documents.ts process_text
 npx tsx scripts/process-documents.ts process_transcriptions
 npx tsx scripts/process-documents.ts process_embeddings
 
+# Auto-processing daemon (prevents stuck documents)
+node scripts/auto-process-daemon.js
+
 # API endpoints for automation
-curl -X POST http://localhost:3001/api/background-process \
+curl -X POST http://localhost:3001/kms/api/background-process \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{"action":"process_all"}'
+
+# Check pending documents
+curl http://localhost:3001/kms/api/background-process
 ```
 
 ## 💡 Usage Examples
@@ -137,9 +148,12 @@ Ask questions about your documents:
 ## 🔧 Technical Stack
 - **Frontend**: Next.js 15.3.3, React, TypeScript, Chakra UI
 - **Backend**: Next.js API Routes, Supabase PostgreSQL + pgvector
-- **AI**: OpenAI GPT-4o-mini, Whisper, text-embedding-3-small
+- **AI Services**: 
+  - **Chat**: OpenAI GPT-4o-mini for intelligent conversations
+  - **Transcription**: OpenAI Whisper + AssemblyAI fallback
+  - **Embeddings**: OpenAI text-embedding-3-small for semantic search
 - **Storage**: Supabase Storage for file management
-- **Processing**: Background workers for document pipeline
+- **Processing**: Multi-provider background workers with auto-recovery
 
 ## 🤝 Contributing
 - Please read the code, test features, and suggest improvements!
