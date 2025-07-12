@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Box, Flex, HStack, IconButton, useColorMode, useColorModeValue,
   Drawer, DrawerBody, DrawerOverlay, DrawerContent, DrawerCloseButton,
-  useDisclosure, VStack
+  useDisclosure, VStack, Divider
 } from "@chakra-ui/react";
 import { FiSun, FiMoon, FiMenu } from "react-icons/fi";
 
@@ -38,78 +38,29 @@ export default function Header() {
   const pathname = usePathname();
   const navTextColor = useColorModeValue('#fff', '#f3f4f6');
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const borderColor = useColorModeValue("whiteAlpha.300", "whiteAlpha.300");
 
   return (
     <Box as="nav" bg="#181f2a" px={{ base: 2, md: 8 }} py={0} position="sticky" top={0} zIndex={1000} borderBottom="1px solid #222">
       <Flex h={{ base: "56px", md: "72px" }} align="center" justify="space-between">
-        {/* Logo */}
-        <Link href="/" style={{ display: "flex", alignItems: "center" }}>
+        {/* Logo only, left-aligned */}
+        <Box display="flex" alignItems="center">
           <Image
-            src="/innovaasLogoOrange.png"
+            src="/innovaasLogoorange.png"
             alt="Innovaas Logo"
-            width={48}
-            height={48}
-            style={{
-              objectFit: "contain",
-              height: "48px",
-              width: "48px",
-              marginRight: "0"
-            }}
-            sizes="48px"
+            width={30}
+            height={30}
+            style={{ objectFit: "contain", height: "30px", width: "30px", marginRight: "0px" }}
+            sizes="30px"
           />
-        </Link>
-
-        {/* Desktop Nav */}
-        <Flex align="center"></Flex>
-
-        {/* Color Mode Switcher */}
+        </Box>
+        {/* Color Mode Switcher only, right-aligned */}
         <Flex align="center">
           <ColorModeSwitcher />
-          {/* Hamburger for mobile */}
-          <IconButton
-            aria-label="Open menu"
-            icon={<FiMenu />}
-            display={{ base: "inline-flex", md: "none" }}
-            onClick={onOpen}
-            variant="ghost"
-            color={navTextColor}
-            ml={2}
-          />
         </Flex>
       </Flex>
-
-      {/* Mobile Drawer */}
-      <Drawer placement="right" onClose={onClose} isOpen={isOpen}>
-        <DrawerOverlay />
-        <DrawerContent bg="#181f2a">
-          <DrawerCloseButton color="#fff" />
-          <DrawerBody>
-            <VStack spacing={4} mt={12}>
-              {navLinks.map(link => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={onClose}
-                  style={{
-                    padding: "0.75rem 1.5rem",
-                    borderRadius: "999px",
-                    background: pathname === link.href ? 'var(--color-accent)' : 'transparent',
-                    color: pathname === link.href ? '#fff' : navTextColor,
-                    fontWeight: 700,
-                    fontFamily: 'Montserrat, Arial, sans-serif',
-                    fontSize: "1.1rem",
-                    textDecoration: "none",
-                    width: "100%",
-                    textAlign: "center"
-                  }}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </VStack>
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
+      {/* Bottom Divider */}
+      <Divider borderColor={borderColor} />
     </Box>
   );
 } 

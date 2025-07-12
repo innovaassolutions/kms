@@ -49,7 +49,7 @@ export default function DocumentStatusPage() {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch('/api/process-documents');
+      const response = await fetch('/kms/api/process-documents');
       if (response.ok) {
         const data = await response.json();
         setDocuments(data.documents || []);
@@ -184,7 +184,7 @@ export default function DocumentStatusPage() {
                     {getStatusBadge(doc.transcription_status, doc.media_type)}
                   </Td>
                   <Td>
-                    {getEmbeddingStatus(doc.embedding, doc.content_text, doc.transcription)}
+                    {getEmbeddingStatus(doc.embedding || null, doc.content_text, doc.transcription)}
                   </Td>
                   <Td>
                     <Text fontSize="sm" color={textColor}>

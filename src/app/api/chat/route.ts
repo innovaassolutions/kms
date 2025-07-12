@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/utils/supabase/serverClients';
+import { LLMService, LLMProvider } from '@/utils/llmService';
+import { enhancedRagService } from '@/utils/enhancedRagService';
+import { ragMiddleware } from '@/utils/ragMiddleware';
 
 // Helper function to calculate cosine similarity
 function calculateCosineSimilarity(vectorA: number[], vectorB: number[]): number {
@@ -35,7 +38,17 @@ function calculateCosineSimilarity(vectorA: number[], vectorB: number[]): number
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, conversationId, tags, types } = await request.json();
+    const { 
+      message, 
+      conversationId, 
+      tags, 
+      types, 
+      provider = 'openai', 
+      model, 
+      useEnhancedRag = true,
+      useIntelligentMiddleware = true,
+      contextHistory = []
+    } = await request.json();
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
@@ -44,106 +57,206 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate embedding for the user's message to find relevant documents
-    const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input: message,
-        model: 'text-embedding-3-small',
-      }),
-    });
+    let relevantDocs = [];
+    let searchContext = null;
+    let middlewareResponse = null;
+    let searchError = null;
 
-    if (!embeddingResponse.ok) {
-      throw new Error('Failed to generate message embedding');
+    // Use intelligent middleware if enabled (highest priority)
+    if (useIntelligentMiddleware) {
+      try {
+        const userPreferences = {
+          maxResults: 5,
+          filters: {
+            type: types && types.length > 0 ? types[0] : undefined,
+            tags: tags && tags.length > 0 ? tags : undefined,
+          },
+        };
+
+        middlewareResponse = await ragMiddleware.processQuery(
+          message,
+          userPreferences,
+          contextHistory
+        );
+
+        searchContext = middlewareResponse.context;
+        
+        // Convert middleware results to legacy format
+        relevantDocs = middlewareResponse.context.results.map(result => ({
+          id: result.id,
+          title: result.title,
+          type: result.type,
+          content_text: result.content,
+          transcription: result.chunkText || '',
+          tags: result.tags,
+          similarity: result.similarity,
+          chunkId: result.chunkId,
+          context: result.context,
+        }));
+
+        console.log('Intelligent middleware completed:', {
+          query: message,
+          strategy: middlewareResponse.context.searchStrategy,
+          queryIntent: middlewareResponse.queryContext.intent.type,
+          complexity: middlewareResponse.queryContext.complexity.level,
+          resultsCount: middlewareResponse.context.results.length,
+          confidence: middlewareResponse.context.confidence,
+          totalTime: middlewareResponse.performance.totalTime,
+        });
+
+      } catch (error) {
+        console.error('Intelligent middleware error:', error);
+        searchError = error;
+        // Fall back to enhanced RAG
+      }
+    }
+    
+    // Fall back to enhanced RAG service if middleware failed or disabled
+    if (!useIntelligentMiddleware || (searchError && useEnhancedRag)) {
+      try {
+        const searchOptions = {
+          query: message,
+          searchType: 'hybrid' as const,
+          maxResults: 5,
+          similarityThreshold: 0.1,
+          filters: {
+            type: types && types.length > 0 ? types[0] : undefined, // Take first type for now
+            tags: tags && tags.length > 0 ? tags : undefined,
+          },
+          includeContext: true,
+          contextWindow: 2,
+        };
+
+        searchContext = await enhancedRagService.search(searchOptions);
+        
+        // Convert enhanced search results to legacy format
+        relevantDocs = searchContext.results.map(result => ({
+          id: result.id,
+          title: result.title,
+          type: result.type,
+          content_text: result.content,
+          transcription: result.chunkText || '',
+          tags: result.tags,
+          similarity: result.similarity,
+          chunkId: result.chunkId,
+          context: result.context,
+        }));
+
+        console.log('Enhanced RAG search completed:', {
+          query: message,
+          strategy: searchContext.searchStrategy,
+          resultsCount: searchContext.results.length,
+          confidence: searchContext.confidence,
+          processingTime: searchContext.processingTime,
+        });
+
+      } catch (error) {
+        console.error('Enhanced RAG search error:', error);
+        searchError = error;
+        // Fall back to legacy search
+      }
     }
 
-    const embeddingData = await embeddingResponse.json();
-    const messageEmbedding = embeddingData.data[0].embedding;
+    // Fall back to legacy search if all enhanced methods failed
+    if ((!useIntelligentMiddleware && !useEnhancedRag) || (searchError && !middlewareResponse)) {
+      console.log('Using legacy search method');
+      
+      // Generate embedding for the user's message to find relevant documents
+      const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: message,
+          model: 'text-embedding-3-small',
+        }),
+      });
 
-    // Search for relevant documents using vector similarity
-    // If tags or types are provided, filter first, then do vector search
-    let relevantDocs = [];
-    let searchError = null;
-    
-    if ((tags && tags.length > 0) || (types && types.length > 0)) {
-      // Build query with filters
-      let query = supabaseServer
-        .from('documents')
-        .select('id, title, type, content_text, transcription, tags, created_at, embedding');
-      
-      // Add tag filter if provided
-      if (tags && tags.length > 0) {
-        query = query.overlaps('tags', tags);
+      if (!embeddingResponse.ok) {
+        throw new Error('Failed to generate message embedding');
       }
+
+      const embeddingData = await embeddingResponse.json();
+      const messageEmbedding = embeddingData.data[0].embedding;
       
-      // Add type filter if provided
-      if (types && types.length > 0) {
-        query = query.in('type', types);
-      }
-      
-      const { data: filteredDocs, error: filterError } = await query;
+      if ((tags && tags.length > 0) || (types && types.length > 0)) {
+        // Build query with filters
+        let query = supabaseServer
+          .from('documents')
+          .select('id, title, type, content_text, transcription, tags, created_at, embedding');
         
-      if (filterError) {
-        console.error('Document filtering error:', filterError);
-        searchError = filterError;
-      } else if (filteredDocs && filteredDocs.length > 0) {
-        // Calculate similarity for filtered documents
-        const docsWithSimilarity = filteredDocs
-          .filter(doc => doc.embedding) // Only docs with embeddings
-          .map(doc => {
-            try {
-              // Handle embedding whether it's array or string
-              let embedding;
-              if (Array.isArray(doc.embedding)) {
-                embedding = doc.embedding;
-              } else if (typeof doc.embedding === 'string') {
-                try {
-                  embedding = JSON.parse(doc.embedding);
-                } catch {
-                  console.warn(`Failed to parse embedding for doc ${doc.id}`);
+        // Add tag filter if provided
+        if (tags && tags.length > 0) {
+          query = query.overlaps('tags', tags);
+        }
+        
+        // Add type filter if provided
+        if (types && types.length > 0) {
+          query = query.in('type', types);
+        }
+        
+        const { data: filteredDocs, error: filterError } = await query;
+          
+        if (filterError) {
+          console.error('Document filtering error:', filterError);
+          searchError = filterError;
+        } else if (filteredDocs && filteredDocs.length > 0) {
+          // Calculate similarity for filtered documents
+          const docsWithSimilarity = filteredDocs
+            .filter(doc => doc.embedding) // Only docs with embeddings
+            .map(doc => {
+              try {
+                // Handle embedding whether it's array or string
+                let embedding;
+                if (Array.isArray(doc.embedding)) {
+                  embedding = doc.embedding;
+                } else if (typeof doc.embedding === 'string') {
+                  try {
+                    embedding = JSON.parse(doc.embedding);
+                  } catch {
+                    console.warn(`Failed to parse embedding for doc ${doc.id}`);
+                    return null;
+                  }
+                } else {
+                  console.warn(`Invalid embedding type for doc ${doc.id}: ${typeof doc.embedding}`);
                   return null;
                 }
-              } else {
-                console.warn(`Invalid embedding type for doc ${doc.id}: ${typeof doc.embedding}`);
+                
+                // Calculate cosine similarity
+                const similarity = calculateCosineSimilarity(messageEmbedding, embedding);
+                
+                return {
+                  ...doc,
+                  similarity
+                };
+              } catch (error) {
+                console.warn(`Error calculating similarity for doc ${doc.id}:`, error);
                 return null;
               }
-              
-              // Calculate cosine similarity
-              const similarity = calculateCosineSimilarity(messageEmbedding, embedding);
-              
-              return {
-                ...doc,
-                similarity
-              };
-            } catch (error) {
-              console.warn(`Error calculating similarity for doc ${doc.id}:`, error);
-              return null;
-            }
-          })
-          .filter(doc => doc !== null && doc.similarity > 0.1)
-          .sort((a, b) => (b?.similarity || 0) - (a?.similarity || 0))
-          .slice(0, 5);
-          
-        relevantDocs = docsWithSimilarity;
+            })
+            .filter(doc => doc !== null && doc.similarity > 0.1)
+            .sort((a, b) => (b?.similarity || 0) - (a?.similarity || 0))
+            .slice(0, 5);
+            
+          relevantDocs = docsWithSimilarity;
+        }
+      } else {
+        // No tag filtering, use regular vector search
+        const { data: vectorDocs, error: vectorError } = await supabaseServer.rpc('match_documents', {
+          query_embedding: messageEmbedding,
+          match_threshold: 0.1,
+          match_count: 5
+        });
+        
+        relevantDocs = vectorDocs;
+        searchError = vectorError;
       }
-    } else {
-      // No tag filtering, use regular vector search
-      const { data: vectorDocs, error: vectorError } = await supabaseServer.rpc('match_documents', {
-        query_embedding: messageEmbedding,
-        match_threshold: 0.1,
-        match_count: 5
-      });
-      
-      relevantDocs = vectorDocs;
-      searchError = vectorError;
     }
 
     if (searchError) {
-      console.error('Vector search error:', searchError);
+      console.error('Search error:', searchError);
     }
 
     // Debug logging
@@ -154,13 +267,13 @@ export async function POST(request: NextRequest) {
     console.log('Relevant docs found:', relevantDocs?.length || 0);
     
     if (relevantDocs && relevantDocs.length > 0) {
-      console.log('Doc details:', relevantDocs.map(doc => ({
+      console.log('Doc details:', relevantDocs.map((doc: any) => ({
         title: doc.title,
         type: doc.type,
         hasContent: !!(doc.content_text || doc.transcription),
         contentLength: (doc.content_text || doc.transcription || '').length,
         similarity: doc.similarity,
-        hasEmbedding: !!(doc.embedding && Array.isArray(doc.embedding))
+        hasEmbedding: !!(doc.embedding && (Array.isArray(doc.embedding) || typeof doc.embedding === 'string'))
       })));
     }
 
@@ -183,7 +296,7 @@ export async function POST(request: NextRequest) {
     }) || [];
     
     console.log('Context prepared:', context.length, 'documents');
-    console.log('Context content preview:', context.map(c => ({
+    console.log('Context content preview:', context.map((c: any) => ({
       title: c.title,
       contentLength: c.content.length,
       contentPreview: c.content.substring(0, 200) + '...'
@@ -222,30 +335,27 @@ CRITICAL INSTRUCTIONS:
 - If asked about something not covered in the documents, explicitly state "This information is not available in the provided documents"
 - Focus on analyzing and summarizing ONLY what is explicitly stated in the document content`;
 
-    // Generate response using OpenAI Chat API
-    const chatResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
-        ],
-        max_tokens: 2000,
-        temperature: 0.7,
-      }),
-    });
+    // Determine which API key to use based on provider
+    const apiKey = provider === 'claude' 
+      ? process.env.ANTHROPIC_API_KEY 
+      : process.env.OPENAI_API_KEY;
 
-    if (!chatResponse.ok) {
-      throw new Error('Failed to generate chat response');
+    if (!apiKey) {
+      throw new Error(`API key not configured for provider: ${provider}`);
     }
 
-    const chatData = await chatResponse.json();
-    const aiResponse = chatData.choices[0].message.content;
+    // Initialize LLM service with selected provider
+    const llmService = new LLMService({
+      provider: provider as LLMProvider,
+      apiKey,
+      model,
+      maxTokens: 2000,
+      temperature: 0.7
+    });
+
+    // Generate response using selected LLM provider
+    const llmResponse = await llmService.generateResponse(systemPrompt, message);
+    const aiResponse = llmResponse.content;
 
     // Store conversation in database (optional - you can add a conversations table)
     // For now, we'll just return the response with context
@@ -254,7 +364,25 @@ CRITICAL INSTRUCTIONS:
       response: aiResponse,
       context: context,
       conversationId: conversationId || `conv_${Date.now()}`,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      provider: provider,
+      model: llmResponse.model,
+      usage: llmResponse.usage,
+      enhanced: useEnhancedRag ? {
+        searchStrategy: searchContext?.searchStrategy,
+        confidence: searchContext?.confidence,
+        processingTime: searchContext?.processingTime,
+        totalResults: searchContext?.totalResults,
+      } : null,
+      intelligent: useIntelligentMiddleware && middlewareResponse ? {
+        queryIntent: middlewareResponse.queryContext.intent,
+        complexity: middlewareResponse.queryContext.complexity,
+        domain: middlewareResponse.queryContext.domain,
+        searchStrategy: middlewareResponse.context.searchStrategy,
+        confidence: middlewareResponse.context.confidence,
+        recommendations: middlewareResponse.recommendations,
+        performance: middlewareResponse.performance,
+      } : null
     });
 
   } catch (error) {

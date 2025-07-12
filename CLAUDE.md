@@ -139,6 +139,14 @@ CREATE TABLE documents (
 
 ## Development Workflow
 
+### Process Step Completion Requirements
+**IMPORTANT**: Do not proceed to the next development phase or process step until ALL current processes have been completed and confirmed, including:
+- All code changes have been implemented and tested
+- All database migrations have been executed successfully
+- All external/manual processes (like SQL migrations in Supabase) have been confirmed complete
+- All dependencies are properly installed and configured
+- All tests pass and the system is functional
+
 ### File Processing States
 - **Pending**: Newly uploaded, not yet processed
 - **Processing**: Currently being processed

@@ -1,4 +1,5 @@
 import { supabase } from './supabase/client';
+import { supabaseServer } from './supabase/serverClients';
 
 // Types for document processing
 export interface ProcessedDocument {
@@ -13,14 +14,23 @@ export interface ProcessedDocument {
 // Text extraction functions
 export async function extractTextFromPDF(fileBuffer: ArrayBuffer): Promise<string> {
   try {
-    // We'll use a simple text extraction for now
-    // In production, you might want to use pdf-parse or similar
-    const textDecoder = new TextDecoder('utf-8');
-    const text = textDecoder.decode(fileBuffer);
+    // Use require instead of dynamic import to avoid bundling issues
+    const pdf = require('pdf-parse');
     
-    // Basic PDF text extraction (this is simplified)
-    // For production, use a proper PDF parsing library
-    return text.replace(/[^\w\s.,!?-]/g, ' ').replace(/\s+/g, ' ').trim();
+    // Convert ArrayBuffer to Buffer for pdf-parse
+    const buffer = Buffer.from(fileBuffer);
+    
+    // Use pdf-parse library for proper PDF text extraction
+    const data = await pdf(buffer);
+    
+    // Extract text content
+    const text = data.text;
+    
+    // Clean up the text (remove excessive whitespace, normalize)
+    return text
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .replace(/\n\s*\n/g, '\n') // Replace multiple newlines with single newline
+      .trim();
   } catch (error) {
     console.error('Error extracting text from PDF:', error);
     throw new Error('Failed to extract text from PDF');
@@ -29,13 +39,23 @@ export async function extractTextFromPDF(fileBuffer: ArrayBuffer): Promise<strin
 
 export async function extractTextFromDOCX(fileBuffer: ArrayBuffer): Promise<string> {
   try {
-    // For DOCX files, we'll need to use a proper library
-    // This is a placeholder - you'll need to implement proper DOCX parsing
-    const textDecoder = new TextDecoder('utf-8');
-    const text = textDecoder.decode(fileBuffer);
+    // Dynamic import to avoid bundling issues
+    const mammoth = (await import('mammoth')).default;
     
-    // Basic text extraction (simplified)
-    return text.replace(/[^\w\s.,!?-]/g, ' ').replace(/\s+/g, ' ').trim();
+    // Convert ArrayBuffer to Buffer for mammoth
+    const buffer = Buffer.from(fileBuffer);
+    
+    // Use mammoth to extract text from DOCX
+    const result = await mammoth.extractRawText({ buffer });
+    
+    // Get the extracted text
+    const text = result.value;
+    
+    // Clean up the text
+    return text
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .replace(/\n\s*\n/g, '\n') // Replace multiple newlines with single newline
+      .trim();
   } catch (error) {
     console.error('Error extracting text from DOCX:', error);
     throw new Error('Failed to extract text from DOCX');
@@ -56,7 +76,7 @@ export async function extractTextFromTXT(fileBuffer: ArrayBuffer): Promise<strin
 export async function processDocument(documentId: string): Promise<void> {
   try {
     // 1. Get document metadata from database
-    const { data: document, error: fetchError } = await supabase
+    const { data: document, error: fetchError } = await supabaseServer
       .from('documents')
       .select('*')
       .eq('id', documentId)
@@ -67,7 +87,7 @@ export async function processDocument(documentId: string): Promise<void> {
     }
 
     // 2. Download file from storage
-    const { data: fileData, error: downloadError } = await supabase.storage
+    const { data: fileData, error: downloadError } = await supabaseServer.storage
       .from('documents')
       .download(document.file_path);
 
@@ -90,6 +110,7 @@ export async function processDocument(documentId: string): Promise<void> {
           contentText = await extractTextFromDOCX(fileBuffer);
           break;
         case 'txt':
+        case 'md':
           contentText = await extractTextFromTXT(fileBuffer);
           break;
         default:
@@ -97,7 +118,7 @@ export async function processDocument(documentId: string): Promise<void> {
       }
 
       // 4. Update document with extracted text
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseServer
         .from('documents')
         .update({ 
           content_text: contentText,
@@ -120,7 +141,7 @@ export async function processDocument(documentId: string): Promise<void> {
     console.error('Error processing document:', error);
     
     // Update document status to error
-    await supabase
+    await supabaseServer
       .from('documents')
       .update({ transcription_status: 'error' })
       .eq('id', documentId);

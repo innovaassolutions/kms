@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { processDocument } from '@/utils/documentProcessor';
 import { transcriptionService } from '@/utils/transcriptionService';
 import { embeddingService } from '@/utils/embeddingService';
+import { supabaseServer } from '@/utils/supabase/serverClients';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,12 +36,11 @@ export async function POST(request: NextRequest) {
         await processDocument(documentId);
         
         // Check if it needs transcription (for audio/video)
-        const { data: document } = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/documents?id=eq.${documentId}`, {
-          headers: {
-            'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-          }
-        }).then(res => res.json());
+        const { data: document } = await supabaseServer
+          .from('documents')
+          .select('media_type')
+          .eq('id', documentId)
+          .single();
 
         if (document && (document.media_type === 'audio' || document.media_type === 'video')) {
           await transcriptionService.processAudioVideoDocument(documentId);
@@ -74,12 +74,9 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     // Get processing status for all documents
-    const { data: documents, error } = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/documents?select=id,title,media_type,transcription_status,content_text,transcription,embedding`, {
-      headers: {
-        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-      }
-    }).then(res => res.json());
+    const { data: documents, error } = await supabaseServer
+      .from('documents')
+      .select('id,title,media_type,transcription_status,content_text,transcription,embedding,created_at');
 
     if (error) {
       throw error;

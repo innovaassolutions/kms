@@ -21,8 +21,32 @@ import {
   Divider,
   Heading,
   useColorModeValue,
+  IconButton,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
+  Tag,
+  TagLabel,
+  TagCloseButton,
+  Wrap,
+  WrapItem,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
 } from "@chakra-ui/react";
-import { FiSearch, FiFile, FiMusic, FiVideo, FiCalendar, FiTag } from "react-icons/fi";
+import { FiSearch, FiFile, FiMusic, FiVideo, FiCalendar, FiTag, FiEdit, FiTrash2, FiMoreVertical, FiPlus } from "react-icons/fi";
 
 interface SearchResult {
   id: string;
@@ -54,6 +78,21 @@ export default function SearchPage() {
   const [searching, setSearching] = useState(false);
   const [selectedType, setSelectedType] = useState("");
   const [selectedMediaType, setSelectedMediaType] = useState("");
+  
+  // Edit modal state
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
+  const [editingDoc, setEditingDoc] = useState<Document | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editType, setEditType] = useState("");
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  
+  // Delete confirmation state
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const [deletingDoc, setDeletingDoc] = useState<Document | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
   const toast = useToast();
 
   // Theme colors
@@ -61,6 +100,8 @@ export default function SearchPage() {
   const cardBg = useColorModeValue("white", "#232b39");
   const cardText = useColorModeValue("gray.800", "white");
   const borderColor = useColorModeValue("gray.200", "gray.600");
+  const inputBg = useColorModeValue("white", "#2d3748");
+  const inputColor = useColorModeValue("gray.900", "white");
 
   // Load initial documents
   useEffect(() => {
@@ -70,7 +111,7 @@ export default function SearchPage() {
   const loadDocuments = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/search');
+      const response = await fetch('api/search');
       if (response.ok) {
         const data = await response.json();
         setDocuments(data.documents || []);
@@ -89,6 +130,105 @@ export default function SearchPage() {
     }
   };
 
+  // Document management functions
+  const openEditModal = (doc: Document) => {
+    setEditingDoc(doc);
+    setEditTitle(doc.title);
+    setEditType(doc.type);
+    setEditTags([...doc.tags]);
+    setTagInput("");
+    onEditOpen();
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if ((e.key === "," || e.key === "Enter") && tagInput.trim()) {
+      e.preventDefault();
+      if (!editTags.includes(tagInput.trim())) {
+        setEditTags([...editTags, tagInput.trim()]);
+      }
+      setTagInput("");
+    }
+  };
+
+  const removeEditTag = (tag: string) => {
+    setEditTags(editTags.filter(t => t !== tag));
+  };
+
+  const saveDocument = async () => {
+    if (!editingDoc) return;
+    
+    try {
+      // Update document via API - we'll need to create this endpoint
+      const response = await fetch(`api/documents/${editingDoc.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: editTitle,
+          type: editType,
+          tags: editTags,
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Document updated successfully",
+          status: "success",
+        });
+        loadDocuments(); // Reload documents
+        onEditClose();
+      } else {
+        throw new Error('Failed to update document');
+      }
+    } catch (error) {
+      console.error('Error updating document:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update document",
+        status: "error",
+      });
+    }
+  };
+
+  const openDeleteModal = (doc: Document) => {
+    setDeletingDoc(doc);
+    onDeleteOpen();
+  };
+
+  const deleteDocument = async () => {
+    if (!deletingDoc) return;
+    
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`api/documents/${deletingDoc.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Document deleted successfully",
+          status: "success",
+        });
+        loadDocuments(); // Reload documents
+        onDeleteClose();
+      } else {
+        throw new Error('Failed to delete document');
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete document",
+        status: "error",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleSearch = async () => {
     if (!query.trim()) {
       toast({
@@ -101,7 +241,7 @@ export default function SearchPage() {
 
     setSearching(true);
     try {
-      const response = await fetch('/api/search', {
+      const response = await fetch('api/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -139,7 +279,7 @@ export default function SearchPage() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSearch();
     }
@@ -209,8 +349,9 @@ export default function SearchPage() {
                   placeholder="Search your documents..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  bg="white"
+                  onKeyDown={handleKeyDown}
+                  bg={inputBg}
+                  color={inputColor}
                   border="2px solid"
                   borderColor={borderColor}
                   _focus={{ borderColor: "#F25C05" }}
@@ -223,7 +364,8 @@ export default function SearchPage() {
                   placeholder="All Types"
                   value={selectedType}
                   onChange={(e) => setSelectedType(e.target.value)}
-                  bg="white"
+                  bg={inputBg}
+                  color={inputColor}
                   borderColor={borderColor}
                 >
                   <option value="strategy">Strategy</option>
@@ -233,13 +375,17 @@ export default function SearchPage() {
                   <option value="idea">Idea</option>
                   <option value="audio">Audio</option>
                   <option value="video">Video</option>
+                  <option value="whitepaper">Whitepaper</option>
+                  <option value="project-plan">Project Plan</option>
+                  <option value="project-charter">Project Charter</option>
                 </Select>
 
                 <Select
                   placeholder="All Media Types"
                   value={selectedMediaType}
                   onChange={(e) => setSelectedMediaType(e.target.value)}
-                  bg="white"
+                  bg={inputBg}
+                  color={inputColor}
                   borderColor={borderColor}
                 >
                   <option value="text">Text</option>
@@ -328,9 +474,9 @@ export default function SearchPage() {
                                 <Badge colorScheme="green" variant="subtle">
                                   {doc.media_type}
                                 </Badge>
-                                {doc.similarity && (
+                                {(doc as any).similarity && (
                                   <Badge colorScheme="orange" variant="subtle">
-                                    {Math.round(doc.similarity * 100)}% match
+                                    {Math.round((doc as any).similarity * 100)}% match
                                   </Badge>
                                 )}
                               </HStack>
@@ -341,6 +487,32 @@ export default function SearchPage() {
                               <Text fontSize="sm" color="gray.500">
                                 {formatDate(doc.created_at)}
                               </Text>
+                              
+                              {/* Management buttons */}
+                              <Menu>
+                                <MenuButton
+                                  as={IconButton}
+                                  icon={<Icon as={FiMoreVertical} />}
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-label="Document actions"
+                                />
+                                <MenuList>
+                                  <MenuItem 
+                                    icon={<Icon as={FiEdit} />}
+                                    onClick={() => openEditModal(doc)}
+                                  >
+                                    Edit
+                                  </MenuItem>
+                                  <MenuItem 
+                                    icon={<Icon as={FiTrash2} />}
+                                    onClick={() => openDeleteModal(doc)}
+                                    color="red.500"
+                                  >
+                                    Delete
+                                  </MenuItem>
+                                </MenuList>
+                              </Menu>
                             </HStack>
                           </Flex>
 
@@ -374,6 +546,111 @@ export default function SearchPage() {
           )}
         </Box>
       </VStack>
+
+      {/* Edit Document Modal */}
+      <Modal isOpen={isEditOpen} onClose={onEditClose} size="lg">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Edit Document</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4}>
+              <Box w="full">
+                <Text mb={2} fontWeight="semibold">Title</Text>
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Document title"
+                />
+              </Box>
+              
+              <Box w="full">
+                <Text mb={2} fontWeight="semibold">Type</Text>
+                <Select
+                  value={editType}
+                  onChange={(e) => setEditType(e.target.value)}
+                >
+                  <option value="strategy">Strategy</option>
+                  <option value="meeting">Meeting</option>
+                  <option value="email">Email</option>
+                  <option value="sop">SOP</option>
+                  <option value="idea">Idea</option>
+                  <option value="audio">Audio</option>
+                  <option value="video">Video</option>
+                  <option value="whitepaper">Whitepaper</option>
+                  <option value="project-plan">Project Plan</option>
+                  <option value="project-charter">Project Charter</option>
+                </Select>
+              </Box>
+              
+              <Box w="full">
+                <Text mb={2} fontWeight="semibold">Tags</Text>
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  placeholder="Add a tag and press comma or enter"
+                  mb={2}
+                />
+                
+                {editTags.length > 0 && (
+                  <Wrap spacing={2}>
+                    {editTags.map(tag => (
+                      <WrapItem key={tag}>
+                        <Tag size="md" colorScheme="orange" borderRadius="full">
+                          <TagLabel>{tag}</TagLabel>
+                          <TagCloseButton onClick={() => removeEditTag(tag)} />
+                        </Tag>
+                      </WrapItem>
+                    ))}
+                  </Wrap>
+                )}
+              </Box>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onEditClose}>
+              Cancel
+            </Button>
+            <Button colorScheme="orange" onClick={saveDocument}>
+              Save Changes
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        isOpen={isDeleteOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onDeleteClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Delete Document
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to delete "{deletingDoc?.title}"? This action cannot be undone.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onDeleteClose}>
+                Cancel
+              </Button>
+              <Button 
+                colorScheme="red" 
+                onClick={deleteDocument}
+                isLoading={isDeleting}
+                ml={3}
+              >
+                Delete
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 } 
