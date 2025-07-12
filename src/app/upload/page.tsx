@@ -38,6 +38,8 @@ import { supabase } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
 import { FiUploadCloud, FiGlobe, FiFile } from "react-icons/fi";
+import { ChunkedUploadService, UploadProgress } from "@/utils/chunkedUploadService";
+import { UploadProgressComponent } from "@/components/UploadProgress";
 
 console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
 console.log('Supabase Key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
@@ -79,6 +81,10 @@ export default function KMSUploadPage() {
   const [tagInput, setTagInput] = useState("");
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   
   // Web URL state
   const [webUrl, setWebUrl] = useState("");
@@ -217,6 +223,7 @@ export default function KMSUploadPage() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     multiple: false,
+    maxSize: 5 * 1024 * 1024 * 1024, // 5GB limit
     accept: {
       "application/pdf": [".pdf"],
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
@@ -227,6 +234,26 @@ export default function KMSUploadPage() {
       "audio/mp4": [".m4a"],
       "video/mp4": [".mp4"],
       "video/quicktime": [".mov"],
+    },
+    onDropRejected: (rejectedFiles) => {
+      const file = rejectedFiles[0];
+      if (file?.errors?.some(error => error.code === 'file-too-large')) {
+        toast({
+          title: "File too large",
+          description: "Maximum file size is 5GB. For larger files, consider using web sources or splitting the content.",
+          status: "error",
+          duration: 8000,
+          isClosable: true,
+        });
+      } else if (file?.errors?.some(error => error.code === 'file-invalid-type')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload PDF, DOCX, TXT, MD, MP3, WAV, M4A, MP4, or MOV files.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     },
   });
 
@@ -305,15 +332,36 @@ export default function KMSUploadPage() {
       toast({ title: "Please fill all required fields.", status: "warning" });
       return;
     }
+    
     setLoading(true);
+    setIsUploading(true);
+    setUploadProgress(null);
+    setUploadComplete(false);
+    setUploadError(null);
+    
     try {
-      // 1. Upload file to Supabase Storage
+      // 1. Upload file to Supabase Storage with chunked upload service
       const fileExt = file.name.split(".").pop();
       const filePath = `${Date.now()}_${file.name}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("documents")
-        .upload(filePath, file);
+      
+      const { data: uploadData, error: uploadError } = await ChunkedUploadService.uploadFile(
+        file,
+        filePath,
+        {
+          chunkSize: 10 * 1024 * 1024, // 10MB chunks
+          onProgress: (progress) => {
+            setUploadProgress(progress);
+          },
+          onChunkComplete: (chunkIndex, totalChunks) => {
+            console.log(`Chunk ${chunkIndex}/${totalChunks} completed`);
+          }
+        }
+      );
+      
       if (uploadError) throw uploadError;
+      
+      setUploadComplete(true);
+      setIsUploading(false);
 
       // 2. Insert metadata into documents table
       let uploaded_by = null;
@@ -386,6 +434,9 @@ export default function KMSUploadPage() {
       // router.push("/team/kms");
     } catch (err: any) {
       console.error("Upload error:", err);
+      setUploadError(err.message);
+      setIsUploading(false);
+      setUploadComplete(false);
       toast({ title: "Upload failed", description: err.message, status: "error" });
     } finally {
       setLoading(false);
@@ -408,13 +459,31 @@ export default function KMSUploadPage() {
         
         <Tabs variant="soft-rounded" colorScheme="orange">
           <TabList mb={6} justifyContent="center">
-            <Tab>
+            <Tab
+              _selected={{
+                bg: "#F25C05",
+                color: "white",
+              }}
+              _hover={{
+                bg: "#d94e04",
+              }}
+              color={cardText}
+            >
               <HStack>
                 <Icon as={FiFile} />
                 <Text>Upload Files</Text>
               </HStack>
             </Tab>
-            <Tab>
+            <Tab
+              _selected={{
+                bg: "#F25C05",
+                color: "white",
+              }}
+              _hover={{
+                bg: "#d94e04",
+              }}
+              color={cardText}
+            >
               <HStack>
                 <Icon as={FiGlobe} />
                 <Text>Web Sources</Text>
@@ -530,12 +599,26 @@ export default function KMSUploadPage() {
                       <Text color={dropzoneHelper} fontSize="sm">
                         Drag and drop files here
                       </Text>
+                      <Text color={dropzoneHelper} fontSize="xs" mt={1}>
+                        Maximum file size: 5GB
+                      </Text>
                       {isDragActive && (
                         <Text color="#F25C05" fontWeight="bold" mt={2}
                         >Drop the file here ...</Text>
                       )}
                     </Box>
                   </FormControl>
+                  {/* Upload Progress */}
+                  {(isUploading || uploadComplete || uploadError) && file && (
+                    <UploadProgressComponent
+                      progress={uploadProgress}
+                      fileName={file.name}
+                      isComplete={uploadComplete}
+                      hasError={!!uploadError}
+                      errorMessage={uploadError || undefined}
+                    />
+                  )}
+                  
                   <Button
                     type="submit"
                     bg="#F25C05"
@@ -545,9 +628,10 @@ export default function KMSUploadPage() {
                     borderRadius="md"
                     _hover={{ bg: "#d94e04" }}
                     isLoading={loading}
-                    loadingText="Uploading"
+                    loadingText={isUploading ? "Uploading..." : "Processing..."}
                     fontSize="lg"
                     mt={2}
+                    isDisabled={isUploading}
                   >
                     Upload File
                   </Button>
