@@ -91,6 +91,27 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         console.warn('Failed to delete file from storage:', storageError);
         // Continue with database deletion even if file deletion fails
       }
+
+      // Also check for and clean up any chunks
+      const possibleSessionId = document.file_path.split('_')[0];
+      const { data: chunks } = await supabaseServer.storage
+        .from('documents')
+        .list(`chunks/${possibleSessionId}`, { limit: 1000 });
+      
+      if (chunks && chunks.length > 0) {
+        console.log(`Cleaning up ${chunks.length} chunks for deleted document`);
+        const chunkPaths = chunks.map((_, i) => 
+          `chunks/${possibleSessionId}/chunk_${(i + 1).toString().padStart(6, '0')}`
+        );
+        
+        const { error: chunkError } = await supabaseServer.storage
+          .from('documents')
+          .remove(chunkPaths);
+        
+        if (chunkError) {
+          console.warn('Failed to delete chunks:', chunkError);
+        }
+      }
     }
 
     // Delete the document from the database

@@ -86,13 +86,73 @@ export async function processDocument(documentId: string): Promise<void> {
       throw new Error('Document not found');
     }
 
-    // 2. Download file from storage
-    const { data: fileData, error: downloadError } = await supabaseServer.storage
+    // 2. Download file from storage (or combine chunks if needed)
+    let fileData: Blob;
+    
+    // Check if this might be a chunked upload that needs combining
+    const { data: directFile, error: downloadError } = await supabaseServer.storage
       .from('documents')
       .download(document.file_path);
 
-    if (downloadError || !fileData) {
-      throw new Error('Failed to download file');
+    if (downloadError) {
+      console.log(`Direct download failed for ${document.file_path}, checking for chunks...`);
+      
+      // Try to find chunks for this file
+      const possibleSessionId = document.file_path.split('_')[0]; // Extract timestamp as session ID
+      const { data: chunks } = await supabaseServer.storage
+        .from('documents')
+        .list(`chunks/${possibleSessionId}`, { limit: 1000 });
+      
+      if (chunks && chunks.length > 0) {
+        console.log(`Found ${chunks.length} chunks, combining them...`);
+        
+        // Combine chunks
+        const chunkBuffers: Buffer[] = [];
+        for (let i = 1; i <= chunks.length; i++) {
+          const chunkPath = `chunks/${possibleSessionId}/chunk_${i.toString().padStart(6, '0')}`;
+          const { data: chunkData, error: chunkError } = await supabaseServer.storage
+            .from('documents')
+            .download(chunkPath);
+            
+          if (chunkError || !chunkData) {
+            throw new Error(`Failed to download chunk ${i}: ${chunkError?.message || 'No data'}`);
+          }
+          
+          const arrayBuffer = await chunkData.arrayBuffer();
+          chunkBuffers.push(Buffer.from(arrayBuffer));
+        }
+        
+        // Combine buffers and create blob
+        const combinedBuffer = Buffer.concat(chunkBuffers);
+        fileData = new Blob([combinedBuffer]);
+        
+        // Upload the combined file for future use
+        try {
+          await supabaseServer.storage
+            .from('documents')
+            .upload(document.file_path, combinedBuffer, {
+              cacheControl: '3600',
+              upsert: true
+            });
+          
+          // Clean up chunks
+          const chunkPaths = chunks.map((_, i) => 
+            `chunks/${possibleSessionId}/chunk_${(i + 1).toString().padStart(6, '0')}`
+          );
+          await supabaseServer.storage
+            .from('documents')
+            .remove(chunkPaths);
+            
+          console.log('Combined file uploaded and chunks cleaned up');
+        } catch (uploadError) {
+          console.error('Failed to upload combined file:', uploadError);
+          // Continue with processing even if we can't save the combined file
+        }
+      } else {
+        throw new Error('File not found and no chunks available');
+      }
+    } else {
+      fileData = directFile;
     }
 
     // 3. Extract text based on file type
@@ -155,7 +215,7 @@ export async function getDocumentsForProcessing(): Promise<ProcessedDocument[]> 
   const { data, error } = await supabase
     .from('documents')
     .select('*')
-    .or('transcription_status.is.null,transcription_status.eq.pending')
+    .or('transcription_status.is.null,transcription_status.eq.pending,content_text.is.null')
     .order('created_at', { ascending: true });
 
   if (error) {

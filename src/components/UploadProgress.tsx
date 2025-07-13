@@ -37,6 +37,8 @@ export const UploadProgressComponent: React.FC<UploadProgressProps> = ({
   const progressBg = useColorModeValue('gray.100', '#202632');
   const successColor = useColorModeValue('green.500', 'green.300');
   const errorColor = useColorModeValue('red.500', 'red.300');
+  const borderColor = useColorModeValue('gray.200', '#353c4a');
+  const shimmerBg = useColorModeValue('rgba(242, 92, 5, 0.05)', 'rgba(242, 92, 5, 0.1)');
 
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -71,7 +73,7 @@ export const UploadProgressComponent: React.FC<UploadProgressProps> = ({
       p={6}
       boxShadow="lg"
       border="1px solid"
-      borderColor={useColorModeValue('gray.200', '#353c4a')}
+      borderColor={borderColor}
       position="relative"
       overflow="hidden"
     >
@@ -176,7 +178,7 @@ export const UploadProgressComponent: React.FC<UploadProgressProps> = ({
           left={0}
           right={0}
           bottom={0}
-          bg={`linear-gradient(90deg, transparent 0%, ${useColorModeValue('rgba(242, 92, 5, 0.05)', 'rgba(242, 92, 5, 0.1)')} 50%, transparent 100%)`}
+          bg={`linear-gradient(90deg, transparent 0%, ${shimmerBg} 50%, transparent 100%)`}
           animation="shimmer 2s infinite"
           pointerEvents="none"
           sx={{

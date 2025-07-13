@@ -95,7 +95,7 @@ export async function GET() {
     // Get processing status for all documents
     const { data: documents, error } = await supabaseServer
       .from('documents')
-      .select('id,title,media_type,transcription_status,content_text,transcription,embedding');
+      .select('id,title,media_type,transcription_status,content_text,transcription,embedding,file_path,created_at');
 
     if (error) {
       throw error;

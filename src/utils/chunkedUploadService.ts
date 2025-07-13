@@ -30,13 +30,14 @@ export class ChunkedUploadService {
   static async uploadFile(
     file: File,
     filePath: string,
-    options: ChunkedUploadOptions = {}
+    options: ChunkedUploadOptions & { metadata?: any } = {}
   ): Promise<{ data: any; error: any }> {
     const {
       chunkSize = this.DEFAULT_CHUNK_SIZE,
       maxRetries = this.MAX_RETRIES,
       onProgress,
-      onChunkComplete
+      onChunkComplete,
+      metadata
     } = options;
 
     // For small files (< 50MB), use direct upload
@@ -48,8 +49,9 @@ export class ChunkedUploadService {
     return this.chunkedUpload(file, filePath, {
       chunkSize,
       maxRetries,
-      onProgress,
-      onChunkComplete
+      onProgress: onProgress || (() => {}),
+      onChunkComplete: onChunkComplete || (() => {}),
+      metadata
     });
   }
 
@@ -114,16 +116,16 @@ export class ChunkedUploadService {
   private static async chunkedUpload(
     file: File,
     filePath: string,
-    options: Required<ChunkedUploadOptions>
+    options: Required<ChunkedUploadOptions> & { metadata?: any }
   ): Promise<{ data: any; error: any }> {
-    const { chunkSize, maxRetries, onProgress, onChunkComplete } = options;
+    const { chunkSize, maxRetries, onProgress, onChunkComplete, metadata } = options;
     const totalChunks = Math.ceil(file.size / chunkSize);
     const startTime = Date.now();
     let uploadedBytes = 0;
 
     try {
       // Initialize multipart upload
-      const uploadSession = await this.initializeMultipartUpload(filePath);
+      const uploadSession = await this.initializeMultipartUpload();
       
       const uploadPromises: Promise<void>[] = [];
       const chunks: { index: number; etag: string }[] = [];
@@ -177,18 +179,30 @@ export class ChunkedUploadService {
 
       // Wait for all chunks to upload
       await Promise.all(uploadPromises);
-
-      // Complete multipart upload
-      const result = await this.completeMultipartUpload(uploadSession, chunks);
       
-      return { data: { path: filePath }, error: null };
+      // Verify all chunks were uploaded successfully
+      console.log(`All ${totalChunks} chunks uploaded, verifying...`);
+      for (let i = 0; i < totalChunks; i++) {
+        if (!chunks[i]) {
+          throw new Error(`Chunk ${i + 1} failed to upload`);
+        }
+      }
+
+      // Add a small delay to ensure all uploads are committed
+      console.log('Waiting for uploads to be fully committed...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Complete multipart upload by combining chunks
+      const uploadResult = await this.completeMultipartUpload(uploadSession, chunks, filePath, metadata);
+      
+      return { data: { path: filePath, chunksPath: uploadResult.chunksPath }, error: null };
     } catch (error) {
       console.error('Chunked upload failed:', error);
       return { data: null, error };
     }
   }
 
-  private static async initializeMultipartUpload(filePath: string): Promise<UploadSession> {
+  private static async initializeMultipartUpload(): Promise<UploadSession> {
     // For Supabase, we'll simulate multipart upload using multiple single uploads
     // and then combine them. In a real implementation, you'd use actual multipart upload APIs
     const sessionId = crypto.randomUUID();
@@ -212,7 +226,7 @@ export class ChunkedUploadService {
         // For Supabase, upload each chunk as a separate file
         const chunkPath = `chunks/${session.sessionId}/chunk_${chunkIndex.toString().padStart(6, '0')}`;
         
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
           .from('documents')
           .upload(chunkPath, chunk, {
             cacheControl: '3600',
@@ -237,12 +251,40 @@ export class ChunkedUploadService {
 
   private static async completeMultipartUpload(
     session: UploadSession,
-    chunks: { index: number; etag: string }[]
+    chunks: { index: number; etag: string }[],
+    finalPath: string,
+    metadata?: any
   ): Promise<any> {
-    // In a real implementation, this would combine the chunks
-    // For now, we'll leave the chunks as separate files
-    // The processing service will handle combining them if needed
-    return { success: true };
+    try {
+      // For large files, use simpler approach to avoid memory issues
+      console.log('Using simple chunk marking approach for large file...');
+      const response = await fetch('/kms/api/upload-chunks-simple', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'mark_ready',
+          sessionId: session.sessionId,
+          finalPath: finalPath,
+          chunkCount: chunks.length,
+          metadata
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to mark chunks as ready');
+      }
+
+      const result = await response.json();
+      console.log('Chunks marked for background processing:', result.message);
+      
+      return { success: true, path: finalPath, chunksPath: result.chunksPath };
+    } catch (error) {
+      console.error('Failed to complete multipart upload:', error);
+      throw error;
+    }
   }
 }
 

@@ -72,6 +72,19 @@ const DOC_TYPES = [
   "knowledge",
 ];
 
+interface UploadSession {
+  sessionId: string;
+  fileName: string;
+  title: string;
+  type: string;
+  tags: string[];
+  progress: UploadProgress | null;
+  isUploading: boolean;
+  isComplete: boolean;
+  error: string | null;
+  timestamp: number;
+}
+
 export default function KMSUploadPage() {
   // File upload state
   const [file, setFile] = useState<File | null>(null);
@@ -85,6 +98,7 @@ export default function KMSUploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSessionId, setUploadSessionId] = useState<string | null>(null);
   
   // Web URL state
   const [webUrl, setWebUrl] = useState("");
@@ -113,9 +127,83 @@ export default function KMSUploadPage() {
   const dropzoneText = useColorModeValue("gray.700", "gray.200");
   const dropzoneHelper = useColorModeValue("gray.500", "gray.400");
 
-  // Load available tags on component mount
+  // Upload session management functions
+  const saveUploadSession = (session: UploadSession) => {
+    try {
+      localStorage.setItem(`upload_session_${session.sessionId}`, JSON.stringify(session));
+    } catch (error) {
+      console.warn('Failed to save upload session:', error);
+    }
+  };
+
+  const loadUploadSession = (sessionId: string): UploadSession | null => {
+    try {
+      const stored = localStorage.getItem(`upload_session_${sessionId}`);
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+      console.warn('Failed to load upload session:', error);
+      return null;
+    }
+  };
+
+  const clearUploadSession = (sessionId: string) => {
+    try {
+      localStorage.removeItem(`upload_session_${sessionId}`);
+    } catch (error) {
+      console.warn('Failed to clear upload session:', error);
+    }
+  };
+
+  const findActiveUploadSession = (): UploadSession | null => {
+    try {
+      const keys = Object.keys(localStorage).filter(key => key.startsWith('upload_session_'));
+      for (const key of keys) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          const session: UploadSession = JSON.parse(stored);
+          // Only consider sessions from the last 24 hours that are still uploading
+          const isRecent = Date.now() - session.timestamp < 24 * 60 * 60 * 1000;
+          if (isRecent && session.isUploading && !session.isComplete) {
+            return session;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to find active upload session:', error);
+    }
+    return null;
+  };
+
+  const restoreUploadSession = (session: UploadSession) => {
+    setTitle(session.title);
+    setType(session.type);
+    setTags(session.tags);
+    setUploadProgress(session.progress);
+    setIsUploading(session.isUploading);
+    setUploadComplete(session.isComplete);
+    setUploadError(session.error);
+    setUploadSessionId(session.sessionId);
+    
+    if (!session.isComplete && !session.error) {
+      toast({
+        title: "Upload session restored",
+        description: `Continuing upload of "${session.fileName}"`,
+        status: "info",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Load available tags and check for active upload sessions on mount
   useEffect(() => {
     loadAvailableTags();
+    
+    // Check for active upload session
+    const activeSession = findActiveUploadSession();
+    if (activeSession) {
+      restoreUploadSession(activeSession);
+    }
   }, []);
 
   const loadAvailableTags = async () => {
@@ -333,17 +421,53 @@ export default function KMSUploadPage() {
       return;
     }
     
+    // Generate session ID for this upload
+    const sessionId = crypto.randomUUID();
+    setUploadSessionId(sessionId);
+    
     setLoading(true);
     setIsUploading(true);
     setUploadProgress(null);
     setUploadComplete(false);
     setUploadError(null);
+
+    // Save initial session state
+    const initialSession: UploadSession = {
+      sessionId,
+      fileName: file.name,
+      title,
+      type,
+      tags,
+      progress: null,
+      isUploading: true,
+      isComplete: false,
+      error: null,
+      timestamp: Date.now(),
+    };
+    saveUploadSession(initialSession);
     
     try {
       // 1. Upload file to Supabase Storage with chunked upload service
       const fileExt = file.name.split(".").pop();
       const filePath = `${Date.now()}_${file.name}`;
       
+      // Prepare metadata for chunked uploads
+      let uploaded_by = null;
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id) {
+        uploaded_by = userData.user.id;
+      }
+
+      const isAV = isAudioOrVideo(`.${fileExt}`);
+      const metadata = {
+        title,
+        type,
+        tags,
+        uploaded_by,
+        media_type: isAV ? (fileExt === "mp3" || fileExt === "wav" || fileExt === "m4a" ? "audio" : "video") : "text",
+        transcription_status: isAV ? "pending" : null,
+      };
+
       const { data: uploadData, error: uploadError } = await ChunkedUploadService.uploadFile(
         file,
         filePath,
@@ -351,10 +475,26 @@ export default function KMSUploadPage() {
           chunkSize: 10 * 1024 * 1024, // 10MB chunks
           onProgress: (progress) => {
             setUploadProgress(progress);
+            
+            // Update session with progress
+            const updatedSession: UploadSession = {
+              sessionId,
+              fileName: file.name,
+              title,
+              type,
+              tags,
+              progress,
+              isUploading: true,
+              isComplete: false,
+              error: null,
+              timestamp: Date.now(),
+            };
+            saveUploadSession(updatedSession);
           },
           onChunkComplete: (chunkIndex, totalChunks) => {
             console.log(`Chunk ${chunkIndex}/${totalChunks} completed`);
-          }
+          },
+          metadata
         }
       );
       
@@ -363,24 +503,54 @@ export default function KMSUploadPage() {
       setUploadComplete(true);
       setIsUploading(false);
 
-      // 2. Insert metadata into documents table
-      let uploaded_by = null;
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user?.id) {
-        uploaded_by = userData.user.id;
-      }
-      // For development, allow uploaded_by to be null (no auth)
+      // Check if this was a chunked upload
+      const isChunkedUpload = uploadData.chunksPath ? true : false;
+      console.log('Upload completed:', { isChunkedUpload, uploadData });
 
-      const isAV = isAudioOrVideo(`.${fileExt}`);
+      // Update session as completed
+      const completedSession: UploadSession = {
+        sessionId,
+        fileName: file.name,
+        title,
+        type,
+        tags,
+        progress: uploadProgress,
+        isUploading: false,
+        isComplete: true,
+        error: null,
+        timestamp: Date.now(),
+      };
+      saveUploadSession(completedSession);
+
+      // 2. For chunked uploads, wait for background processing to complete
+      if (isChunkedUpload) {
+        toast({ 
+          title: "Upload completed!", 
+          description: "Large file uploaded successfully. Processing will start automatically in the background.",
+          status: "success" 
+        });
+        
+        // Clean up session after a delay to allow user to see completion
+        setTimeout(() => {
+          clearUploadSession(sessionId);
+        }, 5000);
+        
+        // For chunked uploads, we don't create the database record immediately
+        // The background processor will handle combining chunks and creating the record
+        setFile(null);
+        setTitle("");
+        setType("");
+        setTags([]);
+        setTagInput("");
+        setUploadSessionId(null);
+        return;
+      }
+
+      // 3. For direct uploads, insert metadata into documents table
       const { data: insertData, error: insertError } = await supabase.from("documents").insert([
         {
-          title,
-          type,
-          tags,
+          ...metadata,
           file_path: uploadData.path,
-          uploaded_by,
-          media_type: isAV ? (fileExt === "mp3" || fileExt === "wav" || fileExt === "m4a" ? "audio" : "video") : "text",
-          transcription_status: isAV ? "pending" : null,
           created_at: new Date().toISOString(),
         },
       ]).select('id');
@@ -425,11 +595,17 @@ export default function KMSUploadPage() {
         });
       }
 
+      // Clean up session after direct upload success
+      setTimeout(() => {
+        clearUploadSession(sessionId);
+      }, 5000);
+      
       setFile(null);
       setTitle("");
       setType("");
       setTags([]);
       setTagInput("");
+      setUploadSessionId(null);
       // Optionally redirect or refresh
       // router.push("/team/kms");
     } catch (err: any) {
@@ -437,6 +613,24 @@ export default function KMSUploadPage() {
       setUploadError(err.message);
       setIsUploading(false);
       setUploadComplete(false);
+      
+      // Update session with error
+      if (uploadSessionId) {
+        const errorSession: UploadSession = {
+          sessionId: uploadSessionId,
+          fileName: file?.name || 'Unknown',
+          title,
+          type,
+          tags,
+          progress: uploadProgress,
+          isUploading: false,
+          isComplete: false,
+          error: err.message,
+          timestamp: Date.now(),
+        };
+        saveUploadSession(errorSession);
+      }
+      
       toast({ title: "Upload failed", description: err.message, status: "error" });
     } finally {
       setLoading(false);
@@ -609,14 +803,44 @@ export default function KMSUploadPage() {
                     </Box>
                   </FormControl>
                   {/* Upload Progress */}
-                  {(isUploading || uploadComplete || uploadError) && file && (
-                    <UploadProgressComponent
-                      progress={uploadProgress}
-                      fileName={file.name}
-                      isComplete={uploadComplete}
-                      hasError={!!uploadError}
-                      errorMessage={uploadError || undefined}
-                    />
+                  {(isUploading || uploadComplete || uploadError) && (
+                    <VStack spacing={4}>
+                      <UploadProgressComponent
+                        progress={uploadProgress}
+                        fileName={file?.name || uploadSessionId ? 'Restored session' : 'Unknown file'}
+                        isComplete={uploadComplete}
+                        hasError={!!uploadError}
+                        errorMessage={uploadError || undefined}
+                      />
+                      
+                      {/* Clear session button for completed or failed uploads */}
+                      {(uploadComplete || uploadError) && uploadSessionId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          colorScheme="gray"
+                          onClick={() => {
+                            clearUploadSession(uploadSessionId);
+                            setUploadSessionId(null);
+                            setUploadProgress(null);
+                            setIsUploading(false);
+                            setUploadComplete(false);
+                            setUploadError(null);
+                            setFile(null);
+                            setTitle("");
+                            setType("");
+                            setTags([]);
+                            toast({
+                              title: "Upload session cleared",
+                              status: "info",
+                              duration: 3000,
+                            });
+                          }}
+                        >
+                          Clear Upload
+                        </Button>
+                      )}
+                    </VStack>
                   )}
                   
                   <Button

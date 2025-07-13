@@ -21,7 +21,7 @@ import {
   Icon,
   useColorModeValue,
 } from "@chakra-ui/react";
-import { FiRefreshCw, FiFile, FiMusic, FiVideo, FiCheck, FiX, FiClock } from "react-icons/fi";
+import { FiRefreshCw, FiFile, FiMusic, FiVideo, FiCheck, FiX, FiClock, FiTrash2 } from "react-icons/fi";
 
 interface Document {
   id: string;
@@ -38,6 +38,7 @@ export default function DocumentStatusPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const toast = useToast();
 
   // Theme-aware color values
@@ -76,6 +77,45 @@ export default function DocumentStatusPage() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchDocuments();
+  };
+
+  const handleDelete = async (documentId: string, title: string) => {
+    if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingIds(prev => new Set(prev).add(documentId));
+
+    try {
+      const response = await fetch(`/kms/api/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setDocuments(prev => prev.filter(doc => doc.id !== documentId));
+        toast({
+          title: "Document deleted",
+          description: `"${title}" has been deleted successfully`,
+          status: "success",
+        });
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete document');
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete document",
+        status: "error",
+      });
+    } finally {
+      setDeletingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(documentId);
+        return newSet;
+      });
+    }
   };
 
   const getStatusBadge = (status: string | null, mediaType: string) => {
@@ -166,6 +206,7 @@ export default function DocumentStatusPage() {
                 <Th>Processing Status</Th>
                 <Th>Embedding Status</Th>
                 <Th>Uploaded</Th>
+                <Th>Actions</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -190,6 +231,19 @@ export default function DocumentStatusPage() {
                     <Text fontSize="sm" color={textColor}>
                       {new Date(doc.created_at).toLocaleDateString()}
                     </Text>
+                  </Td>
+                  <Td>
+                    <Button
+                      size="sm"
+                      colorScheme="red"
+                      variant="outline"
+                      leftIcon={<Icon as={FiTrash2} />}
+                      onClick={() => handleDelete(doc.id, doc.title)}
+                      isLoading={deletingIds.has(doc.id)}
+                      loadingText="Deleting"
+                    >
+                      Delete
+                    </Button>
                   </Td>
                 </Tr>
               ))}

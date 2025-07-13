@@ -32,8 +32,15 @@ async function checkAndProcess() {
     const checkData = await checkResponse.json();
     const pendingCount = checkData.pendingCount || 0;
     
-    if (pendingCount > 0) {
-      console.log(`📋 Found ${pendingCount} pending documents - triggering processing...`);
+    // Also check for documents with null content_text (stuck uploads)
+    const needsProcessing = checkData.documents?.filter(doc => 
+      !doc.content_text && doc.media_type === 'text' ||
+      doc.transcription_status === 'pending' ||
+      !doc.transcription_status && (doc.media_type === 'audio' || doc.media_type === 'video')
+    ).length || 0;
+    
+    if (pendingCount > 0 || needsProcessing > 0) {
+      console.log(`📋 Found ${pendingCount} pending + ${needsProcessing} stuck documents - triggering processing...`);
       
       // Trigger processing
       const processResponse = await fetch(`${API_URL}/kms/api/background-process`, {
@@ -46,11 +53,12 @@ async function checkAndProcess() {
       });
       
       if (!processResponse.ok) {
-        throw new Error(`Process request failed: ${processResponse.status}`);
+        const errorText = await processResponse.text();
+        throw new Error(`Process request failed: ${processResponse.status} - ${errorText}`);
       }
       
       const processData = await processResponse.json();
-      console.log(`✅ Processed ${processData.processed} documents, ${processData.failed} failed`);
+      console.log(`✅ Processing completed - check logs for details`);
       
       if (processData.results && processData.results.length > 0) {
         processData.results.forEach(result => {
@@ -66,6 +74,10 @@ async function checkAndProcess() {
     }
   } catch (error) {
     console.error(`❌ Auto-processing error:`, error.message);
+    // Log more details for debugging
+    if (error.stack) {
+      console.error('Stack trace:', error.stack);
+    }
   }
 }
 
