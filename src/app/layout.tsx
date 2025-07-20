@@ -7,9 +7,9 @@ export const metadata: Metadata = {
   title: "Innovaas Solutions",
   description: "Digital Transformation Agency",
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon-16x16.png',
-    apple: '/apple-touch-icon.png',
+    icon: 'public/favicon.ico',
+    shortcut: 'public/favicon-16x16.png',
+    apple: 'public/apple-touch-icon.png',
   },
 };
 
