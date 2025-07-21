@@ -6,8 +6,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     
     // Parse query parameters
-    const level = searchParams.get('level');
-    const component = searchParams.get('component');
+    const level = searchParams.get('level') || undefined;
+    const component = searchParams.get('component') || undefined;
     const startTime = searchParams.get('startTime') ? new Date(searchParams.get('startTime')!) : undefined;
     const endTime = searchParams.get('endTime') ? new Date(searchParams.get('endTime')!) : undefined;
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 100;

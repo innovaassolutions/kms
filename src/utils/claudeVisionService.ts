@@ -198,7 +198,7 @@ export class ClaudeVisionService {
       const batchResults = await Promise.allSettled(batchPromises);
       
       for (const result of batchResults) {
-        if (result.status === 'fulfilled' && result.value.success) {
+        if (result.status === 'fulfilled' && result.value.success && result.value.analysis) {
           results.set(result.value.frameId, result.value.analysis);
         } else {
           console.error(`Frame analysis failed:`, result);
@@ -230,7 +230,7 @@ export class ClaudeVisionService {
     };
 
     return this.analyzeFrame(imageBuffer, frameId, {
-      focusAreas: focusAreas[contentType],
+      focusAreas: [...focusAreas[contentType]],
       detailLevel: 'high',
       extractCode: contentType === 'code' || contentType === 'mixed',
       identifyTechnicalTerms: true,

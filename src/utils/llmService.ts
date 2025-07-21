@@ -35,11 +35,11 @@ export class LLMService {
     this.maxTokens = config.maxTokens || 2000;
     this.temperature = config.temperature || 0.7;
 
-    // Set default models based on provider
+    // Set default models based on provider - using more capable models for better quality
     if (config.model) {
       this.model = config.model;
     } else {
-      this.model = this.provider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-sonnet-20241022';
+      this.model = this.provider === 'openai' ? 'gpt-4o' : 'claude-3-5-sonnet-20241022';
     }
 
     // Initialize Claude service if needed

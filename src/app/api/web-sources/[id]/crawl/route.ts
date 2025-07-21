@@ -5,10 +5,12 @@ import { monitoringService } from '@/utils/monitoringService';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
+  const sourceId = resolvedParams.id;
+  
   try {
-    const sourceId = params.id;
     const body = await request.json();
     const {
       priority = 5,
@@ -188,7 +190,7 @@ export async function POST(
       component: 'web_crawler',
       action: 'manual_crawl_start_failed',
       message: `Failed to start manual crawl: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      metadata: { sourceId: params.id, error },
+      metadata: { sourceId, error },
     });
     
     return NextResponse.json(
@@ -204,10 +206,11 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sourceId = params.id;
+    const resolvedParams = await params;
+    const sourceId = resolvedParams.id;
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '10');
 

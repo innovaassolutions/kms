@@ -130,13 +130,13 @@ export class EnhancedDocumentProcessor {
     } catch (error) {
       console.error(`Error processing document ${documentId}:`, error);
       
-      await this.updateProcessingStatus(documentId, 'error', error.message);
+      await this.updateProcessingStatus(documentId, 'error', error instanceof Error ? error.message : 'Unknown error');
       
       return {
         success: false,
         document: null,
         chunks: [],
-        errorMessage: error.message,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
         processingStats: {
           textLength: 0,
           chunkCount: 0,

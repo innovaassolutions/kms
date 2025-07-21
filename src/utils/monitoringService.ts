@@ -452,7 +452,7 @@ export class MonitoringService {
       
       const { data, error } = await supabase
         .from('system_logs')
-        .select('count(*)')
+        .select('*', { count: 'exact' })
         .gte('timestamp', oneDayAgo.toISOString())
         .eq('component', 'api');
 
@@ -461,7 +461,7 @@ export class MonitoringService {
       }
 
       // Return requests per hour
-      return (data[0]?.count || 0) / 24;
+      return data.length / 24;
     } catch (error) {
       return 0;
     }

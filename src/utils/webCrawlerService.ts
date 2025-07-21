@@ -115,7 +115,7 @@ export class WebCrawlerService {
       }
 
       // Start recursive crawling
-      const urlQueue = [{ url: startUrl, depth: 0, parentUrl: null }];
+      const urlQueue: Array<{ url: string; depth: number; parentUrl: string | null }> = [{ url: startUrl, depth: 0, parentUrl: null }];
       const maxDepth = options.maxDepth || 3;
       const maxPages = options.maxPages || 100;
 
@@ -609,7 +609,6 @@ export class WebCrawlerService {
       const robotsUrl = `${domain}/robots.txt`;
       const response = await fetch(robotsUrl, {
         headers: { 'User-Agent': this.userAgent },
-        timeout: 10000,
       });
 
       if (!response.ok) {

@@ -6,8 +6,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     
     // Parse query parameters
-    const component = searchParams.get('component');
-    const name = searchParams.get('name');
+    const component = searchParams.get('component') || undefined;
+    const name = searchParams.get('name') || undefined;
     const startTime = searchParams.get('startTime') ? new Date(searchParams.get('startTime')!) : undefined;
     const endTime = searchParams.get('endTime') ? new Date(searchParams.get('endTime')!) : undefined;
     const aggregation = searchParams.get('aggregation') as 'avg' | 'sum' | 'min' | 'max' | 'count' | undefined;

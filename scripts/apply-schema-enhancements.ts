@@ -32,7 +32,7 @@ async function checkCurrentSchema() {
     .select('extname')
     .eq('extname', 'vector');
   
-  console.log('Vector extension enabled:', extensions?.length > 0);
+  console.log('Vector extension enabled:', (extensions?.length || 0) > 0);
   
   // Check existing indexes
   const { data: indexes } = await supabase
@@ -44,7 +44,7 @@ async function checkCurrentSchema() {
   
   return {
     hasEmbeddingColumn: documentsColumns?.some(c => c.column_name === 'embedding'),
-    hasVectorExtension: extensions?.length > 0,
+    hasVectorExtension: (extensions?.length || 0) > 0,
     existingIndexes: indexes?.map(i => i.indexname) || [],
   };
 }

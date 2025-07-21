@@ -290,7 +290,7 @@ Guidelines:
       // Single query execution
       const searchOptions: SearchOptions = {
         query: queries[0],
-        searchType: queryContext.suggestedStrategy,
+        searchType: queryContext.suggestedStrategy === 'multi-step' ? 'hybrid' : queryContext.suggestedStrategy as any,
         maxResults: userPreferences.maxResults || this.getDefaultMaxResults(queryContext),
         similarityThreshold: userPreferences.similarityThreshold || this.getDefaultThreshold(queryContext),
         filters: {
@@ -322,7 +322,7 @@ Guidelines:
     for (const query of queries) {
       const searchOptions: SearchOptions = {
         query,
-        searchType: queryContext.suggestedStrategy,
+        searchType: queryContext.suggestedStrategy === 'multi-step' ? 'hybrid' : queryContext.suggestedStrategy as any,
         maxResults: Math.ceil((userPreferences.maxResults || 10) / queries.length),
         similarityThreshold: userPreferences.similarityThreshold || 0.3,
         filters: {

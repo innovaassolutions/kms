@@ -336,7 +336,7 @@ export class EnhancedEmbeddingService {
     try {
       const { data, error } = await supabase
         .from('embedding_cache')
-        .select('embedding, embedding_model')
+        .select('embedding, embedding_model, usage_count')
         .eq('content_hash', hash)
         .single();
       
@@ -348,7 +348,7 @@ export class EnhancedEmbeddingService {
       await supabase
         .from('embedding_cache')
         .update({ 
-          usage_count: data.usage_count + 1,
+          usage_count: (data.usage_count || 0) + 1,
           last_accessed: new Date().toISOString()
         })
         .eq('content_hash', hash);

@@ -635,7 +635,7 @@ export default function WebSourcesPage() {
       <WebSourceModal
         isOpen={isOpen}
         onClose={onClose}
-        source={selectedSource}
+        source={selectedSource as any}
         onSuccess={fetchSources}
       />
 

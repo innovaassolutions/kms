@@ -47,7 +47,10 @@ export async function POST(request: NextRequest) {
       model, 
       useEnhancedRag = true,
       useIntelligentMiddleware = true,
-      contextHistory = []
+      contextHistory = [],
+      useMultiModal = true,
+      includeWebSources = true,
+      maxResults = 15
     } = await request.json();
 
     if (!message || typeof message !== 'string') {
@@ -117,14 +120,14 @@ export async function POST(request: NextRequest) {
         const searchOptions = {
           query: message,
           searchType: 'hybrid' as const,
-          maxResults: 5,
-          similarityThreshold: 0.1,
+          maxResults: maxResults,
+          similarityThreshold: 0.3, // Increased for better relevance
           filters: {
             type: types && types.length > 0 ? types[0] : undefined, // Take first type for now
             tags: tags && tags.length > 0 ? tags : undefined,
           },
           includeContext: true,
-          contextWindow: 2,
+          contextWindow: 3, // Increased context window
         };
 
         searchContext = await enhancedRagService.search(searchOptions);
@@ -236,9 +239,9 @@ export async function POST(request: NextRequest) {
                 return null;
               }
             })
-            .filter(doc => doc !== null && doc.similarity > 0.1)
+            .filter(doc => doc !== null && doc.similarity > 0.3) // Increased threshold
             .sort((a, b) => (b?.similarity || 0) - (a?.similarity || 0))
-            .slice(0, 5);
+            .slice(0, maxResults);
             
           relevantDocs = docsWithSimilarity;
         }
@@ -246,8 +249,8 @@ export async function POST(request: NextRequest) {
         // No tag filtering, use regular vector search
         const { data: vectorDocs, error: vectorError } = await supabaseServer.rpc('match_documents', {
           query_embedding: messageEmbedding,
-          match_threshold: 0.1,
-          match_count: 5
+          match_threshold: 0.3, // Increased for better relevance
+          match_count: maxResults
         });
         
         relevantDocs = vectorDocs;
@@ -258,6 +261,127 @@ export async function POST(request: NextRequest) {
     if (searchError) {
       console.error('Search error:', searchError);
     }
+
+    // Multi-modal search integration
+    let multiModalResults: any[] = [];
+    let webSourceResults: any[] = [];
+    
+    if (useMultiModal) {
+      try {
+        const multiModalResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1', '') || 'http://localhost:3001'}/kms/api/search-multimodal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: message,
+            searchMode: 'multimodal',
+            maxResults: Math.floor(maxResults / 2), // Reserve half for documents
+            filters: {
+              documentTypes: types,
+              tags: tags,
+            },
+            includeFrameContext: true,
+          }),
+        });
+
+        if (multiModalResponse.ok) {
+          const multiModalData = await multiModalResponse.json();
+          if (multiModalData.success && multiModalData.data?.results) {
+            multiModalResults = multiModalData.data.results;
+            console.log('Multi-modal search found:', multiModalResults.length, 'results');
+          }
+        }
+      } catch (error) {
+        console.error('Multi-modal search error:', error);
+      }
+    }
+
+    // Web sources search integration
+    if (includeWebSources) {
+      try {
+        // Search for crawled web pages
+        const { data: webPages, error: webError } = await supabaseServer
+          .from('crawled_pages')
+          .select('id, url, title, content, domain, crawled_at, embedding')
+          .not('embedding', 'is', null)
+          .limit(Math.floor(maxResults / 3)); // Reserve third for web sources
+        
+        if (!webError && webPages && webPages.length > 0) {
+          // Calculate similarities for web pages
+          const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              input: message,
+              model: 'text-embedding-3-small',
+            }),
+          });
+
+          if (embeddingResponse.ok) {
+            const embeddingData = await embeddingResponse.json();
+            const messageEmbedding = embeddingData.data[0].embedding;
+            
+            webSourceResults = webPages
+              .map(page => {
+                const similarity = calculateCosineSimilarity(messageEmbedding, page.embedding);
+                return {
+                  id: page.id,
+                  title: page.title || page.url,
+                  type: 'web_page',
+                  content: page.content,
+                  url: page.url,
+                  domain: page.domain,
+                  similarity,
+                  crawledAt: page.crawled_at,
+                };
+              })
+              .filter(page => page.similarity > 0.3) // Higher threshold for web content
+              .sort((a, b) => b.similarity - a.similarity)
+              .slice(0, 5);
+              
+            console.log('Web sources found:', webSourceResults.length, 'relevant pages');
+          }
+        }
+      } catch (error) {
+        console.error('Web sources search error:', error);
+      }
+    }
+
+    // Combine all results
+    const allResults = [
+      ...(relevantDocs || []),
+      ...multiModalResults.map((result: any) => ({
+        id: result.id,
+        title: result.title,
+        type: result.type,
+        content_text: result.content,
+        transcription: result.type === 'video_frame' ? `Frame at ${result.timestamp}s: ${result.content}` : result.content,
+        similarity: result.similarity,
+        frameUrl: result.frameUrl,
+        timestamp: result.timestamp,
+        tags: result.tags || [],
+      })),
+      ...webSourceResults.map((result: any) => ({
+        id: result.id,
+        title: result.title,
+        type: 'web_source',
+        content_text: result.content,
+        transcription: '',
+        similarity: result.similarity,
+        url: result.url,
+        domain: result.domain,
+        tags: [],
+      })),
+    ];
+
+    // Sort by similarity and limit to maxResults
+    relevantDocs = allResults
+      .sort((a, b) => (b.similarity || 0) - (a.similarity || 0))
+      .slice(0, maxResults);
 
     // Debug logging
     console.log('=== CHAT API DEBUG ===');
@@ -316,24 +440,35 @@ export async function POST(request: NextRequest) {
       ? `\n\n[Context Filter: This conversation is focused on documents with ${filterInfo.join(' and ')}. All provided documents have been filtered to match these criteria.]`
       : '';
     
-    const systemPrompt = `You are an intelligent knowledge management assistant. You MUST ONLY use information from the provided document context below. DO NOT use any external knowledge or make assumptions beyond what is explicitly stated in the documents.${contextFilterInfo}
+    const systemPrompt = `You are an advanced AI assistant with access to a comprehensive knowledge base including documents, video content, and web resources. Your role is to provide intelligent, helpful, and accurate responses based primarily on the provided sources.${contextFilterInfo}
 
-${context.length > 0 ? `Context from documents:
-${context.map((doc: any, index: number) => `
-Document ${index + 1}: ${doc.title} (${doc.type})
+${context.length > 0 ? `Context from your knowledge base:
+${context.map((doc: any, index: number) => {
+  let sourceInfo = `Document ${index + 1}: ${doc.title} (${doc.type})`;
+  if (doc.type === 'video_frame') {
+    sourceInfo += ` - Video frame at ${doc.timestamp || 'N/A'}s`;
+  } else if (doc.type === 'web_source') {
+    sourceInfo += ` - Web page from ${doc.domain || 'N/A'}`;
+  }
+  return `
+${sourceInfo}
 Content: ${doc.content}
 ${doc.fullContentLength > 50000 ? `\n[Note: This document was ${doc.fullContentLength} characters long and has been truncated for analysis]` : ''}
-Similarity: ${Math.round(doc.similarity * 100)}%
-`).join('\n')}` : 'No relevant documents found in the knowledge base.'}
+${doc.frameUrl ? `Visual content: ${doc.frameUrl}` : ''}
+${doc.url ? `Source URL: ${doc.url}` : ''}
+Relevance: ${Math.round(doc.similarity * 100)}%
+`;
+}).join('\n')}` : 'No directly relevant documents found in the knowledge base for this specific query.'}
 
-CRITICAL INSTRUCTIONS:
-- ONLY use information from the provided documents above
-- If no relevant documents are provided, clearly state that no relevant information was found
-- DO NOT make up information or use external knowledge
-- DO NOT reference organizations, projects, or concepts not mentioned in the provided documents
-- When citing information, always reference the specific document title
-- If asked about something not covered in the documents, explicitly state "This information is not available in the provided documents"
-- Focus on analyzing and summarizing ONLY what is explicitly stated in the document content`;
+RESPONSE GUIDELINES:
+- Prioritize information from the provided sources above, citing specific documents, video timestamps, or web sources when relevant
+- You may use your general knowledge to provide helpful context, explanations, and additional insights that enhance understanding
+- When information from sources seems incomplete, you can provide additional context while clearly distinguishing between source content and general knowledge
+- For technical topics, provide comprehensive explanations that combine source material with broader technical understanding
+- If sources contain code, diagrams, or technical content, analyze and explain them thoroughly
+- Be conversational and helpful, avoiding overly restrictive or robotic responses
+- When sources are limited, acknowledge this but still provide the most helpful response possible
+- For visual content from videos, describe what was detected and its relevance to the query`;
 
     // Determine which API key to use based on provider
     const apiKey = provider === 'claude' 
@@ -349,7 +484,7 @@ CRITICAL INSTRUCTIONS:
       provider: provider as LLMProvider,
       apiKey,
       model,
-      maxTokens: 2000,
+      maxTokens: 4000, // Increased for more comprehensive responses
       temperature: 0.7
     });
 
