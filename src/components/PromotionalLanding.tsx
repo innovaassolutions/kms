@@ -182,7 +182,7 @@ function ChatMockup() {
 
       <text x="42" y="328" fontSize="10" fontWeight="600" fill="#F25C05">📄 Sources:</text>
       <text x="42" y="344" fontSize="9" fill="#718096">[1] Remote_Onboarding_Checklist.pdf — p.3, Section 2.1</text>
-      <text x="42" y="358" fontSize="9" fill="#718096">[2] IT_Setup_Guide_Remote.docx — p.1, "Hardware Provisioning"</text>
+      <text x="42" y="358" fontSize="9" fill="#718096">[2] IT_Setup_Guide_Remote.docx — p.1, &ldquo;Hardware Provisioning&rdquo;</text>
 
       {/* Second user message */}
       <rect x="300" y="384" width="470" height="36" rx="10" fill="#F25C05" />
