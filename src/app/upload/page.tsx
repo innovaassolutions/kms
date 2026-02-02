@@ -360,7 +360,7 @@ export default function KMSUploadPage() {
 
     setLoading(true);
     try {
-      const response = await fetch('/kms/api/web-sources', {
+      const response = await fetch('/api/web-sources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

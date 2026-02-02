@@ -258,7 +258,7 @@ export class ChunkedUploadService {
     try {
       // For large files, use simpler approach to avoid memory issues
       console.log('Using simple chunk marking approach for large file...');
-      const response = await fetch('/kms/api/upload-chunks-simple', {
+      const response = await fetch('/api/upload-chunks-simple', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

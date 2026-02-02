@@ -96,7 +96,7 @@ export default function ChatPage() {
 
   const loadAvailableTags = async () => {
     try {
-      const response = await fetch('/kms/api/search');
+      const response = await fetch('/api/search');
       if (response.ok) {
         const data = await response.json();
         const allTags = new Set<string>();
@@ -152,7 +152,7 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/kms/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

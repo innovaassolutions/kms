@@ -281,7 +281,7 @@ export default function WebSourceModal({ isOpen, onClose, source, onSuccess }: W
     setLoading(true);
 
     try {
-      const url = isEditing ? `/kms/api/web-sources/${source.id}` : '/kms/api/web-sources';
+      const url = isEditing ? `/api/web-sources/${source.id}` : '/api/web-sources';
       const method = isEditing ? 'PUT' : 'POST';
 
       const response = await fetch(url, {

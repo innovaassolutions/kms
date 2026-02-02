@@ -1,6 +1,4 @@
 const nextConfig = {
-  basePath: '/kms',
-  assetPrefix: '/kms',
   serverExternalPackages: ['sharp'],
   experimental: {
     serverActions: {

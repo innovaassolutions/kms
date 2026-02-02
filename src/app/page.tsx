@@ -108,8 +108,8 @@ export default function HomePage() {
     try {
       if (showUpdating) setIsUpdating(true);
       
-      console.log('Fetching dashboard stats from /kms/api/dashboard-stats');
-      const response = await fetch('/kms/api/dashboard-stats');
+      console.log('Fetching dashboard stats from /api/dashboard-stats');
+      const response = await fetch('/api/dashboard-stats');
       console.log('Response status:', response.status, response.statusText);
       
       if (!response.ok) {

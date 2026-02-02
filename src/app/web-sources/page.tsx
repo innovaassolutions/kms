@@ -157,7 +157,7 @@ export default function WebSourcesPage() {
       if (statusFilter) params.append('status', statusFilter);
       if (domainFilter) params.append('domain', domainFilter);
 
-      const response = await fetch(`/kms/api/web-sources?${params}`);
+      const response = await fetch(`/api/web-sources?${params}`);
       const data = await response.json();
 
       if (data.success) {
@@ -198,7 +198,7 @@ export default function WebSourcesPage() {
     if (!sourceToDelete) return;
 
     try {
-      const response = await fetch(`/kms/api/web-sources/${sourceToDelete.id}`, {
+      const response = await fetch(`/api/web-sources/${sourceToDelete.id}`, {
         method: 'DELETE',
       });
 
@@ -234,7 +234,7 @@ export default function WebSourcesPage() {
     try {
       setCrawlingSource(source.id);
       
-      const response = await fetch(`/kms/api/web-sources/${source.id}/crawl`, {
+      const response = await fetch(`/api/web-sources/${source.id}/crawl`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -279,7 +279,7 @@ export default function WebSourcesPage() {
     const newStatus = source.status === 'active' ? 'paused' : 'active';
     
     try {
-      const response = await fetch(`/kms/api/web-sources/${source.id}`, {
+      const response = await fetch(`/api/web-sources/${source.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),

@@ -50,7 +50,7 @@ export default function DocumentStatusPage() {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch('/kms/api/process-documents');
+      const response = await fetch('/api/process-documents');
       if (response.ok) {
         const data = await response.json();
         setDocuments(data.documents || []);
@@ -87,7 +87,7 @@ export default function DocumentStatusPage() {
     setDeletingIds(prev => new Set(prev).add(documentId));
 
     try {
-      const response = await fetch(`/kms/api/documents/${documentId}`, {
+      const response = await fetch(`/api/documents/${documentId}`, {
         method: 'DELETE',
       });
 

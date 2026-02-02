@@ -46,7 +46,7 @@ export default function Header() {
         {/* Logo only, left-aligned */}
         <Box display="flex" alignItems="center">
           <Image
-            src="/kms/innovaasLogoorange.png"
+            src="/innovaasLogoorange.png"
             alt="Innovaas Logo"
             width={30}
             height={30}
