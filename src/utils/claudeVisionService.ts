@@ -63,6 +63,9 @@ export class ClaudeVisionService {
   
   constructor() {
     this.apiKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || '';
+  }
+
+  private ensureApiKey(): void {
     if (!this.apiKey) {
       throw new Error('Claude API key not found in environment variables');
     }
@@ -76,6 +79,7 @@ export class ClaudeVisionService {
     frameId: string,
     options: VisionAnalysisOptions = {}
   ): Promise<ClaudeVisionAnalysis> {
+    this.ensureApiKey();
     return await monitoringService.timeFunction(
       'claude_vision_analysis',
       'vision_processing',

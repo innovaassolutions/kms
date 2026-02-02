@@ -28,6 +28,8 @@ import {
 } from "@chakra-ui/react";
 import { FiFile, FiHardDrive, FiPieChart, FiDatabase, FiRefreshCw } from "react-icons/fi";
 import dynamic from "next/dynamic";
+import { supabase } from "@/utils/supabase/client";
+import PromotionalLanding from "@/components/PromotionalLanding";
 
 // Dynamically import Chart.js components to avoid SSR issues
 const Pie = dynamic(() => import("react-chartjs-2").then((mod) => mod.Pie), {
@@ -64,6 +66,8 @@ interface DashboardStats {
 }
 
 export default function HomePage() {
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +83,21 @@ export default function HomePage() {
   const spinnerColor = useColorModeValue("orange.500", "orange.300");
   const typeBoxBg = useColorModeValue("gray.50", "gray.700");
   const legendColor = useColorModeValue("#4A5568", "#E2E8F0");
+
+  // Check authentication first
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsAuthenticated(!!user);
+      } catch {
+        setIsAuthenticated(false);
+      } finally {
+        setAuthChecked(true);
+      }
+    }
+    checkAuth();
+  }, []);
 
   // Handle client-side mounting
   useEffect(() => {
@@ -110,13 +129,17 @@ export default function HomePage() {
     }
   };
 
-  // Initial fetch
+  // Initial fetch (only if authenticated)
   useEffect(() => {
-    fetchStats();
-  }, []);
+    if (authChecked && isAuthenticated) {
+      fetchStats();
+    }
+  }, [authChecked, isAuthenticated]);
 
   // Set up auto-refresh interval
   useEffect(() => {
+    if (!authChecked || !isAuthenticated) return;
+    
     // Only start auto-refresh after initial load and if no error
     if (!loading && !error) {
       intervalRef.current = setInterval(() => {
@@ -129,7 +152,7 @@ export default function HomePage() {
         }
       };
     }
-  }, [loading, error]);
+  }, [loading, error, authChecked, isAuthenticated]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -156,10 +179,8 @@ export default function HomePage() {
     
     if (total === 0) return { percentage: 0, stage: 'No Documents', color: 'gray' };
     
-    // Calculate progress percentage (embedded = 100%, processed = 66%, pending = 33%, error = 0%)
     const progressValue = (embedded * 100 + processed * 66 + pending * 33) / total;
     
-    // Determine current stage and color
     let stage = '';
     let color = '';
     
@@ -212,29 +233,25 @@ export default function HomePage() {
       '#4FC3F7', '#9575CD', '#F06292', '#FF7043', '#A1887F'
     ];
 
-    // Find min and max counts for font size scaling
     const counts = stats.wordCloud.map(word => word.count);
     const minCount = Math.min(...counts);
     const maxCount = Math.max(...counts);
     
-    // Scale font sizes between 14px and 42px based on relative frequency
     const scaleFontSize = (count: number) => {
-      if (maxCount === minCount) return 24; // All same frequency
+      if (maxCount === minCount) return 24;
       const normalized = (count - minCount) / (maxCount - minCount);
-      return Math.round(14 + (normalized * 28)); // Range: 14-42px
+      return Math.round(14 + (normalized * 28));
     };
 
-    // Generate random positions and rotations for each word
     const getWordStyle = (index: number) => {
-      // Use seeded random based on word index for consistent positioning
       const seedRandom = (seed: number) => {
         const x = Math.sin(seed) * 10000;
         return x - Math.floor(x);
       };
       
-      const rotation = (seedRandom(index * 1.5) - 0.5) * 60; // -30 to +30 degrees
-      const xOffset = (seedRandom(index * 2.3) - 0.5) * 80; // -40% to +40%
-      const yOffset = (seedRandom(index * 3.7) - 0.5) * 60; // -30% to +30%
+      const rotation = (seedRandom(index * 1.5) - 0.5) * 60;
+      const xOffset = (seedRandom(index * 2.3) - 0.5) * 80;
+      const yOffset = (seedRandom(index * 3.7) - 0.5) * 60;
       
       return {
         position: 'absolute' as const,
@@ -307,6 +324,21 @@ export default function HomePage() {
     };
   };
 
+  // ── AUTH CHECK: show loading spinner while checking ──
+  if (!authChecked) {
+    return (
+      <Box minH="100vh" display="flex" alignItems="center" justifyContent="center">
+        <Spinner size="xl" color={spinnerColor} />
+      </Box>
+    );
+  }
+
+  // ── NOT AUTHENTICATED: show promotional landing ──
+  if (!isAuthenticated) {
+    return <PromotionalLanding />;
+  }
+
+  // ── AUTHENTICATED: show dashboard ──
   if (loading) {
     return (
       <Box minH="100vh" display="flex" alignItems="center" justifyContent="center">
