@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/utils/supabase/serverClients';
 import { Readable } from 'stream';
 
-export const maxDuration = 600; // 10 minutes for large file processing
+export const maxDuration = 300; // 5 minutes (Vercel hobby plan max)
 export const dynamic = 'force-dynamic'; // Ensure this runs in Node.js runtime
 
 // API to handle chunked uploads more efficiently
