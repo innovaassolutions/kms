@@ -19,6 +19,7 @@ import {
   Container,
 } from "@chakra-ui/react";
 import { CheckCircleIcon, WarningIcon } from "@chakra-ui/icons";
+import { FiLogOut, FiClock, FiSearch, FiUsers, FiFileText, FiFilm, FiShare2 } from "react-icons/fi";
 
 // ─── SVG MOCKUPS ──────────────────────────────────────────────────────────────
 
@@ -180,7 +181,7 @@ function ChatMockup() {
       <text x="42" y="288" fontSize="11" fill="#a0aec0">3. Manager assigns onboarding buddy (Day 1)</text>
       <text x="42" y="304" fontSize="11" fill="#a0aec0">4. Complete security training module (Week 1)</text>
 
-      <text x="42" y="328" fontSize="10" fontWeight="600" fill="#F25C05">📄 Sources:</text>
+      <text x="42" y="328" fontSize="10" fontWeight="600" fill="#F25C05">Sources:</text>
       <text x="42" y="344" fontSize="9" fill="#718096">[1] Remote_Onboarding_Checklist.pdf — p.3, Section 2.1</text>
       <text x="42" y="358" fontSize="9" fill="#718096">[2] IT_Setup_Guide_Remote.docx — p.1, &ldquo;Hardware Provisioning&rdquo;</text>
 
@@ -594,17 +595,17 @@ const STATS = [
 
 const PAIN_POINTS = [
   {
-    emoji: "🚪",
+    icon: FiLogOut,
     title: "Knowledge Walks Out the Door",
     desc: "When experienced employees leave, years of institutional knowledge leave with them. No handoff doc can capture what's in their head.",
   },
   {
-    emoji: "🐢",
+    icon: FiClock,
     title: "Onboarding Takes Too Long",
     desc: "New hires take months to become productive because training materials are scattered across shared drives, wikis, and people's memories.",
   },
   {
-    emoji: "🔍",
+    icon: FiSearch,
     title: "Can't Find the Right Document",
     desc: "Teams waste hours searching shared drives for the right document. Keyword search fails because you need to know the exact words.",
   },
@@ -653,22 +654,22 @@ const HOW_IT_WORKS = [
 
 const USE_CASES = [
   {
-    emoji: "🎓",
+    icon: FiUsers,
     title: "Employee Onboarding",
     desc: "New hires ask questions in natural language and get answers from SOPs with source citations. No more \"ask Bob, he's been here 20 years.\"",
   },
   {
-    emoji: "📋",
+    icon: FiFileText,
     title: "SOP & Process Docs",
     desc: "Every standard operating procedure is instantly searchable. Find the exact section you need across hundreds of documents in seconds.",
   },
   {
-    emoji: "🎬",
+    icon: FiFilm,
     title: "Technical Training",
     desc: "Training videos searchable by content — find the exact moment someone explains a process, complete with timestamps and transcriptions.",
   },
   {
-    emoji: "🤝",
+    icon: FiShare2,
     title: "Cross-Team Knowledge",
     desc: "Share knowledge across departments without scheduling meetings. Engineering, HR, and operations — all searchable in one place.",
   },
@@ -832,9 +833,17 @@ export default function PromotionalLanding() {
                 borderWidth="1px"
                 borderColor={borderCol}
               >
-                <Text fontSize="3xl" mb={4}>
-                  {p.emoji}
-                </Text>
+                <Flex
+                  w={12}
+                  h={12}
+                  borderRadius="lg"
+                  bg="rgba(242, 92, 5, 0.1)"
+                  align="center"
+                  justify="center"
+                  mb={4}
+                >
+                  <Icon as={p.icon} w={6} h={6} color="#F25C05" />
+                </Flex>
                 <Heading size="md" mb={3} color={headingCol}>
                   {p.title}
                 </Heading>
@@ -965,9 +974,17 @@ export default function PromotionalLanding() {
                 _hover={{ borderColor: "#F25C05", transform: "translateY(-2px)" }}
                 transition="all 0.2s"
               >
-                <Text fontSize="3xl" mb={3}>
-                  {uc.emoji}
-                </Text>
+                <Flex
+                  w={10}
+                  h={10}
+                  borderRadius="lg"
+                  bg="rgba(242, 92, 5, 0.1)"
+                  align="center"
+                  justify="center"
+                  mb={3}
+                >
+                  <Icon as={uc.icon} w={5} h={5} color="#F25C05" />
+                </Flex>
                 <Heading size="sm" mb={2} color={headingCol}>
                   {uc.title}
                 </Heading>
