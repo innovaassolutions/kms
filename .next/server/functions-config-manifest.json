@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "functions": {
+    "/api/upload-chunks": {
+      "maxDuration": 300
+    },
+    "/api/upload-chunks-simple": {
+      "maxDuration": 60
+    }
+  }
+}

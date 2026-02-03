@@ -1,0 +1,255 @@
+{
+  "version": 3,
+  "pages404": true,
+  "appType": "app",
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "priority": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/api/documents/[id]",
+      "regex": "^/api/documents/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/documents/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/web-sources/[id]",
+      "regex": "^/api/web\\-sources/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/web\\-sources/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/web-sources/[id]/crawl",
+      "regex": "^/api/web\\-sources/([^/]+?)/crawl(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/web\\-sources/(?<nxtPid>[^/]+?)/crawl(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_global-error",
+      "regex": "^/_global\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_global\\-error(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/api/auto-process",
+      "regex": "^/api/auto\\-process(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auto\\-process(?:/)?$"
+    },
+    {
+      "page": "/api/background-process",
+      "regex": "^/api/background\\-process(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/background\\-process(?:/)?$"
+    },
+    {
+      "page": "/api/chat",
+      "regex": "^/api/chat(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/chat(?:/)?$"
+    },
+    {
+      "page": "/api/dashboard-stats",
+      "regex": "^/api/dashboard\\-stats(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/dashboard\\-stats(?:/)?$"
+    },
+    {
+      "page": "/api/debug-documents",
+      "regex": "^/api/debug\\-documents(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/debug\\-documents(?:/)?$"
+    },
+    {
+      "page": "/api/fix-embeddings",
+      "regex": "^/api/fix\\-embeddings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/fix\\-embeddings(?:/)?$"
+    },
+    {
+      "page": "/api/intelligent-search",
+      "regex": "^/api/intelligent\\-search(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/intelligent\\-search(?:/)?$"
+    },
+    {
+      "page": "/api/monitoring/health",
+      "regex": "^/api/monitoring/health(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/monitoring/health(?:/)?$"
+    },
+    {
+      "page": "/api/monitoring/logs",
+      "regex": "^/api/monitoring/logs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/monitoring/logs(?:/)?$"
+    },
+    {
+      "page": "/api/monitoring/metrics",
+      "regex": "^/api/monitoring/metrics(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/monitoring/metrics(?:/)?$"
+    },
+    {
+      "page": "/api/process-documents",
+      "regex": "^/api/process\\-documents(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/process\\-documents(?:/)?$"
+    },
+    {
+      "page": "/api/process-video",
+      "regex": "^/api/process\\-video(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/process\\-video(?:/)?$"
+    },
+    {
+      "page": "/api/search",
+      "regex": "^/api/search(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/search(?:/)?$"
+    },
+    {
+      "page": "/api/search-enhanced",
+      "regex": "^/api/search\\-enhanced(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/search\\-enhanced(?:/)?$"
+    },
+    {
+      "page": "/api/search-multimodal",
+      "regex": "^/api/search\\-multimodal(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/search\\-multimodal(?:/)?$"
+    },
+    {
+      "page": "/api/test",
+      "regex": "^/api/test(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/test(?:/)?$"
+    },
+    {
+      "page": "/api/test-chat-filter",
+      "regex": "^/api/test\\-chat\\-filter(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/test\\-chat\\-filter(?:/)?$"
+    },
+    {
+      "page": "/api/test-embedding",
+      "regex": "^/api/test\\-embedding(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/test\\-embedding(?:/)?$"
+    },
+    {
+      "page": "/api/upload-chunks",
+      "regex": "^/api/upload\\-chunks(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/upload\\-chunks(?:/)?$"
+    },
+    {
+      "page": "/api/upload-chunks-simple",
+      "regex": "^/api/upload\\-chunks\\-simple(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/upload\\-chunks\\-simple(?:/)?$"
+    },
+    {
+      "page": "/api/web-sources",
+      "regex": "^/api/web\\-sources(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/web\\-sources(?:/)?$"
+    },
+    {
+      "page": "/chat",
+      "regex": "^/chat(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/chat(?:/)?$"
+    },
+    {
+      "page": "/robots.txt",
+      "regex": "^/robots\\.txt(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/robots\\.txt(?:/)?$"
+    },
+    {
+      "page": "/search",
+      "regex": "^/search(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/search(?:/)?$"
+    },
+    {
+      "page": "/sitemap.xml",
+      "regex": "^/sitemap\\.xml(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/sitemap\\.xml(?:/)?$"
+    },
+    {
+      "page": "/status",
+      "regex": "^/status(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/status(?:/)?$"
+    },
+    {
+      "page": "/upload",
+      "regex": "^/upload(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/upload(?:/)?$"
+    },
+    {
+      "page": "/web-sources",
+      "regex": "^/web\\-sources(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/web\\-sources(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments",
+    "clientParamParsing": false,
+    "dynamicRSCPrerender": false
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}

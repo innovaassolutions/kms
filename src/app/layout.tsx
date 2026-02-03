@@ -4,12 +4,36 @@ import ClientLayout from "../components/ClientLayout";
 import { ColorModeScript } from "@chakra-ui/react";
 
 export const metadata: Metadata = {
-  title: "Innovaas Solutions",
-  description: "Digital Transformation Agency",
+  title: "NovaKMS | AI-Powered Knowledge Management System",
+  description:
+    "Enterprise-grade knowledge management with AI. Process documents, audio, and video. Semantic search, RAG-powered chat with citations, and intelligent onboarding — all in one platform.",
   icons: {
-    icon: 'public/favicon.ico',
-    shortcut: 'public/favicon-16x16.png',
-    apple: 'public/apple-touch-icon.png',
+    icon: "/favicon.ico",
+    shortcut: "/favicon-16x16.png",
+    apple: "/apple-touch-icon.png",
+  },
+  metadataBase: new URL("https://novakms.innovaas.co"),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "NovaKMS | AI-Powered Knowledge Management System",
+    description:
+      "Enterprise-grade knowledge management with AI. Process documents, audio, and video. Semantic search, RAG-powered chat with citations, and intelligent onboarding — all in one platform.",
+    url: "https://novakms.innovaas.co",
+    siteName: "NovaKMS",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NovaKMS | AI-Powered Knowledge Management System",
+    description:
+      "Enterprise-grade knowledge management with AI. Process documents, audio, and video. Semantic search, RAG-powered chat with citations, and intelligent onboarding — all in one platform.",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
