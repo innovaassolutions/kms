@@ -1,9 +1,0 @@
-User-Agent: *
-Allow: /
-Disallow: /chat
-Disallow: /upload
-Disallow: /web-sources
-Disallow: /status
-Disallow: /api
-
-Sitemap: https://novakms.innovaas.co/sitemap.xml
