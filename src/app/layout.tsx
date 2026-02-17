@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import ClientLayout from "../components/ClientLayout";
 import { ColorModeScript } from "@chakra-ui/react";
@@ -49,6 +50,18 @@ export default function RootLayout({
         <link rel="manifest" href="/site.webmanifest" />
         <meta name="theme-color" content="#0d1a21" />
       </head>
+      <Script
+        id="reb2b-analytics"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `!function(key) {if (window.reb2b) return;window.reb2b = {loaded: true};var s = document.createElement("script");s.async = true;s.src = "https://ddwl4m2hdecbv.cloudfront.net/b/" + key + "/" + key + ".js.gz";document.getElementsByTagName("script")[0].parentNode.insertBefore(s, document.getElementsByTagName("script")[0]);}("GNLKQH7W8R6Q");`,
+        }}
+      />
+      <Script
+        src="https://analytics.innovaas.co/script.js"
+        data-website-id="WEBSITE_ID_FROM_UMAMI"
+        strategy="afterInteractive"
+      />
       <body suppressHydrationWarning>
         <ClientLayout>{children}</ClientLayout>
       </body>
