@@ -59,7 +59,7 @@ export default function RootLayout({
       />
       <Script
         src="https://analytics.innovaas.co/script.js"
-        data-website-id="WEBSITE_ID_FROM_UMAMI"
+        data-website-id="6342c379-c6a4-47d7-877b-e351404c73a1"
         strategy="afterInteractive"
       />
       <body suppressHydrationWarning>
